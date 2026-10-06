@@ -20,3 +20,298 @@ padding:calc(14px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-ins
 input[type=password],input[type=text],select,textarea{width:100%;background:rgba(0,0,0,.35);color:var(--txt);border:1px solid var(--line);border-radius:14px;padding:13px;font:inherit;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--neon);box-shadow:0 0 0 3px #00ffa322}
 textarea{min-height:96px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center}
+.eye{flex:none;width:48px;height:48px;border:1px solid var(--line);background:rgba(0,0,0,.35);border-radius:14px;color:var(--txt);font-size:18px}
+.chk{display:flex;gap:9px;align-items:center;margin-top:10px;font-size:13px;color:var(--mut)}.chk input{width:18px;height:18px;accent-color:var(--neon)}
+.file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 12px;border:2px dashed #00ffa366;border-radius:18px;background:linear-gradient(180deg,#00ffa30d,#00c2ff08);cursor:pointer}
+.drop:active{transform:scale(.99)}.drop .ic{font-size:30px}.drop b{font-size:15px}.drop span{font-size:12px;color:var(--mut);word-break:break-all}
+.drop.has{border-style:solid;background:linear-gradient(180deg,#00ffa31f,#00c2ff12)}
+.seg{display:flex;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{flex:1;text-align:center;padding:10px 4px;border-radius:10px;font-size:13px;color:var(--mut);cursor:pointer}
+.seg input:checked+label{background:linear-gradient(90deg,var(--neon),var(--cyan));color:#00110a;font-weight:800}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chips button{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);border-radius:99px;padding:7px 11px;font-size:12px}
+.go{width:100%;margin-top:16px;padding:17px;border:0;border-radius:16px;font:800 17px system-ui;color:#00110a;background:linear-gradient(90deg,var(--neon),var(--cyan));box-shadow:0 8px 28px #00ffa344}
+.go:active{transform:scale(.98)}.go:disabled{opacity:.55;box-shadow:none}
+.note{font-size:12px;color:var(--mut);margin-top:10px;text-align:center}
+.warn{background:#ffb02022;border:1px solid #ffb02066;color:#ffd488;border-radius:14px;padding:12px;font-size:13px;margin-bottom:12px}
+.steps{display:flex;justify-content:space-between;gap:6px;margin-bottom:12px}
+.st{flex:1;text-align:center;font-size:11px;color:var(--mut);padding:8px 2px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.st.on{color:#00110a;font-weight:800;background:linear-gradient(90deg,var(--neon),var(--cyan));border-color:transparent;animation:p 1.2s infinite}
+.st.ok{color:var(--neon);border-color:#00ffa355}
+@keyframes p{50%{opacity:.7}}
+.bar{height:10px;background:rgba(0,0,0,.4);border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+#fill{height:100%;width:0;background:linear-gradient(90deg,var(--neon),var(--cyan),var(--vio));transition:width .4s}
+pre{background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:12px;padding:10px;max-height:160px;overflow:auto;font-size:12px;color:#8fffc9;white-space:pre-wrap;margin:12px 0 0}
+video{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-height:60vh}
+.bp{font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding:7px 0}.bp b{color:var(--neon)}
+.hide{display:none}.err{color:#ff7b7b}
+.foot{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}.foot b{color:var(--neon)}
+</style></head><body><div class="wrap">
+
+<div class="top"><div class="logo">&#9889;</div>
+<div><h1>Magic Video Editor</h1><span class="badge">BY DESHMUKH GAMER</span></div></div>
+
+<div id="sandbox" class="warn hide"><b>Yahan file nahi chunegi.</b> Ye Claude ke preview ke andar khula hai. Is file ko GitHub Pages par daalo aur uska link Chrome mein kholo.</div>
+
+<div class="card">
+<div class="lbl"><i>1</i>Gemini API Key</div>
+<div class="row"><input id="key" type="password" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
+<button class="eye" type="button" id="show">&#128065;</button></div>
+<label class="chk"><input type="checkbox" id="rem">Remember on this phone (browser only)</label>
+
+<div class="lbl"><i>2</i>AI Model</div>
+<select id="model"><option>gemini-2.5-flash</option><option>gemini-2.5-pro</option><option>gemini-2.5-flash-lite</option></select>
+
+<div class="lbl"><i>3</i>Gameplay Video</div>
+<input class="file" id="file" type="file" accept="video/*,.mp4,.mov,.mkv">
+<label class="drop" id="drop" for="file"><div class="ic">&#127916;</div><b id="dn">Tap to choose video</b><span id="ds">MP4 (H.264) works best</span></label>
+
+<div class="two">
+<div><div class="lbl"><i>4</i>Format</div>
+<div class="seg"><input type="radio" name="aspect" id="a1" value="Original" checked><label for="a1">Original</label>
+<input type="radio" name="aspect" id="a2" value="9:16 (Shorts / Reels)"><label for="a2">9:16</label></div></div>
+<div><div class="lbl"><i>5</i>Quality</div>
+<div class="seg"><input type="radio" name="qual" id="q1" value="720" checked><label for="q1">720p</label>
+<input type="radio" name="qual" id="q2" value="1080"><label for="q2">1080p</label></div></div>
+</div>
+
+<div class="lbl"><i>6</i>Editing Instructions</div>
+<textarea id="ins" placeholder="e.g. Edit like Datarx Gaming: fast cuts, zoom-ins on kills, flash transitions, slow-mo on headshots"></textarea>
+<div class="chips" id="chips">
+<button type="button">Fast cuts + zoom on kills</button><button type="button">Cinematic slow-mo montage</button><button type="button">Hype Shorts, flash transitions</button></div>
+
+<button class="go" id="go">&#10024; Start Magic Edit</button>
+<div class="note">Keep this tab open and screen on while rendering. 720p is faster.</div>
+</div>
+
+<div class="card hide" id="prog">
+<div class="steps"><div class="st" id="s1">Analyze</div><div class="st" id="s2">AI Plan</div><div class="st" id="s3">Render</div><div class="st" id="s4">Done</div></div>
+<div class="bar"><div id="fill"></div></div><pre id="logb"></pre></div>
+
+<div class="card hide" id="res"><video id="vid" controls playsinline></video>
+<a id="dl" download="edited_by_deshmukh_gamer.mp4"><button class="go" style="margin-top:0" type="button">&#11015; Download Video</button></a>
+<div id="bp" style="margin-top:12px"></div></div>
+
+<div class="foot">Created by <b>Deshmukh Gamer</b></div>
+</div>
+
+<script>
+const $ = i => document.getElementById(i);
+const FF_BASE = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd';
+const CORE_BASE = 'https://unpkg.com/@ffmpeg/core@0.12.3/dist/umd';
+let ff = null, logs = [], curProg = () => {};
+
+const log = m => { $('logb').textContent += m + '\n'; $('logb').scrollTop = 1e9; };
+const setPct = p => { $('fill').style.width = p + '%'; };
+const ev = n => Math.max(2, Math.floor(n / 2) * 2);
+const cl = (v, lo, hi, d) => { v = parseFloat(v); return isNaN(v) ? d : Math.min(hi, Math.max(lo, v)); };
+const radio = n => document.querySelector('input[name=' + n + ']:checked').value;
+function stage(n) { for (let i = 1; i <= 4; i++) $('s' + i).className = 'st' + (i < n ? ' ok' : i === n ? ' on' : ''); }
+
+// sandbox warning (Claude preview iframe / file://)
+try { if (window.self !== window.top || location.origin === 'null' || location.protocol === 'file:') $('sandbox').classList.remove('hide'); } catch (e) { $('sandbox').classList.remove('hide'); }
+
+$('show').onclick = () => { $('key').type = $('key').type === 'password' ? 'text' : 'password'; };
+if (localStorage.gk) { $('key').value = localStorage.gk; $('rem').checked = true; }
+document.querySelectorAll('#chips button').forEach(b => b.onclick = () => { $('ins').value = b.textContent; });
+$('file').onchange = () => {
+  const f = $('file').files[0];
+  if (!f) { $('drop').classList.remove('has'); $('dn').textContent = 'Tap to choose video'; $('ds').textContent = 'MP4 (H.264) works best'; return; }
+  $('drop').classList.add('has'); $('dn').textContent = '\u2705 Video selected';
+  $('ds').textContent = f.name + ' \u2022 ' + (f.size / 1048576).toFixed(1) + ' MB';
+};
+
+async function blobURL(url, type, patch) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Download failed: ' + url);
+  const body = patch ? patch(await r.text()) : await r.blob();
+  return URL.createObjectURL(new Blob([body], { type }));
+}
+
+async function loadFF() {
+  if (ff) return ff;
+  log('Loading video engine (~31 MB, first time only)...');
+  const OLD = 'new Worker(new URL(e.p+e.u(814),e.b),{type:void 0})';
+  window.__FFW = await blobURL(FF_BASE + '/814.ffmpeg.js', 'text/javascript');
+  const main = await blobURL(FF_BASE + '/ffmpeg.js', 'text/javascript', t => {
+    if (!t.includes(OLD)) throw new Error('Engine patch failed (library changed).');
+    return t.replace(OLD, 'new Worker(window.__FFW,{type:void 0})');
+  });
+  await new Promise((ok, no) => {
+    const s = document.createElement('script');
+    s.src = main; s.onload = ok; s.onerror = () => no(new Error('Engine script failed to load'));
+    document.head.appendChild(s);
+  });
+  const f = new FFmpegWASM.FFmpeg();
+  f.on('log', ({ message }) => { logs.push(message); });
+  f.on('progress', ({ progress }) => curProg(progress));
+  await f.load({
+    coreURL: await blobURL(CORE_BASE + '/ffmpeg-core.js', 'text/javascript'),
+    wasmURL: await blobURL(CORE_BASE + '/ffmpeg-core.wasm', 'application/wasm')
+  });
+  ff = f; return f;
+}
+
+function getVideo(file) {
+  return new Promise((ok, no) => {
+    const v = document.createElement('video');
+    v.preload = 'auto'; v.muted = true; v.playsInline = true;
+    v.src = URL.createObjectURL(file);
+    v.onloadedmetadata = () => ok(v);
+    v.onerror = () => no(new Error('Cannot read this video. Please use an MP4 (H.264).'));
+  });
+}
+
+async function grabFrames(v, n) {
+  const w = 480, h = Math.round(480 * v.videoHeight / v.videoWidth);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'), out = [];
+  for (let i = 0; i < n; i++) {
+    const t = v.duration * (i + 0.5) / n;
+    await new Promise(r => { v.onseeked = r; v.currentTime = t; setTimeout(r, 5000); });
+    g.drawImage(v, 0, 0, w, h);
+    out.push([t, c.toDataURL('image/jpeg', 0.6).split(',')[1]]);
+  }
+  return out;
+}
+
+const SYSTEM = 'You are an elite Indian gaming YouTube/Shorts video editor. You get sparse sample frames and the creator\'s style brief. Reply with ONLY one valid JSON object. No markdown, no commentary.';
+
+async function askGemini(key, model, info, frames, instr, aspect) {
+  const parts = [];
+  frames.forEach(([t, b]) => {
+    parts.push({ text: 'Frame at ' + t.toFixed(1) + 's:' });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: b } });
+  });
+  parts.push({ text: `Raw gameplay video: ${info.dur.toFixed(1)}s, ${info.w}x${info.h}.
+Frames above are sparse samples, so when unsure keep continuous action.
+Output format: ${aspect}
+CREATOR BRIEF: ${instr}
+
+Return JSON exactly like:
+{"title": "...", "grade": {"contrast": 1.1, "saturation": 1.3, "brightness": 0.0},
+ "segments": [{"start": 0.0, "end": 6.5, "speed": 1.0, "zoom": 1.0, "effect": "none|flash|shake", "reason": "..."}]}
+
+Rules: segments chronological, non-overlapping, inside 0..${info.dur.toFixed(1)}s, usually 1-15s each.
+Cut dead/boring parts, keep action. speed 0.5-2.0 (slow-mo 0.5-0.7 on big kills, 1.25-1.5 on filler).
+zoom 1.0-1.4 punch-ins on hype moments. flash = white flash at a segment start (impact transition),
+shake = screen shake (explosions). grade: contrast 0.9-1.3, saturation 1.0-1.6, brightness -0.05..0.05.` });
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key);
+  const r = await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: 'user', parts }],
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }
+    })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('Gemini API error ' + r.status + ': ' + ((j.error && j.error.message) || ''));
+  const text = ((j.candidates && j.candidates[0] && j.candidates[0].content.parts) || []).map(p => p.text || '').join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Gemini gave an empty reply. Try again or change the model.');
+  return JSON.parse(m[0]);
+}
+
+function clean(bp, dur) {
+  let last = 0; const segs = [];
+  for (const s of bp.segments || []) {
+    const a = Math.max(parseFloat(s.start), last), b = Math.min(parseFloat(s.end), dur);
+    if (isNaN(a) || isNaN(b) || b - a < 0.5) continue;
+    segs.push({ a, b, sp: cl(s.speed, 0.5, 2, 1), z: cl(s.zoom, 1, 1.5, 1),
+      fx: ['flash', 'shake'].includes(s.effect) ? s.effect : 'none', why: s.reason || '' });
+    last = b;
+  }
+  if (!segs.length) throw new Error('Gemini returned no usable cuts. Try different instructions.');
+  const g = bp.grade || {};
+  return { segs, grade: [cl(g.contrast, 0.8, 1.4, 1.1), cl(g.saturation, 0.8, 1.8, 1.2), cl(g.brightness, -0.1, 0.1, 0)] };
+}
+
+async function renderSeg(f, i, s, W, H, grade, audio, q) {
+  const d = s.b - s.a, vf = [`scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`];
+  if (s.fx === 'shake') {
+    const k = s.z * 1.08;
+    vf.push(`scale=${ev(W * k)}:${ev(H * k)},crop=${W}:${H}:x='(iw-ow)/2+sin(t*45)*12':y='(ih-oh)/2+cos(t*38)*12'`);
+  } else if (s.z > 1.01) vf.push(`scale=${ev(W * s.z)}:${ev(H * s.z)},crop=${W}:${H}`);
+  if (s.sp !== 1) vf.push(`setpts=PTS/${s.sp.toFixed(3)}`);
+  vf.push(`eq=contrast=${grade[0].toFixed(2)}:saturation=${grade[1].toFixed(2)}:brightness=${grade[2].toFixed(2)}`);
+  if (s.fx === 'flash') vf.push('fade=t=in:st=0:d=0.25:color=white');
+  vf.push('fps=30', 'format=yuv420p');
+  const a = ['-ss', s.a.toFixed(3), '-t', d.toFixed(3), '-i', '/in/input.mp4'];
+  if (!audio) a.push('-f', 'lavfi', '-t', d.toFixed(3), '-i', 'anullsrc=r=44100:cl=stereo');
+  a.push('-vf', vf.join(','));
+  if (audio) a.push('-af', (s.sp !== 1 ? `atempo=${s.sp.toFixed(3)},` : '') + 'aresample=44100');
+  a.push('-map', '0:v:0', '-map', audio ? '0:a:0' : '1:a:0', '-c:v', 'libx264', '-preset', q.preset, '-crf', q.crf,
+    '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-shortest', `/seg${i}.mp4`);
+  const code = await f.exec(a);
+  if (code !== 0) throw new Error('FFmpeg failed on clip ' + (i + 1) + '\n' + logs.slice(-4).join('\n'));
+}
+
+async function main() {
+  const key = $('key').value.trim(), file = $('file').files[0];
+  if (!key) return alert('Enter your Gemini API key');
+  if (!file) return alert('Choose a video first');
+  if ($('rem').checked) localStorage.gk = key; else localStorage.removeItem('gk');
+  $('go').disabled = true; $('prog').classList.remove('hide'); $('res').classList.add('hide');
+  $('logb').textContent = ''; setPct(2); stage(1);
+  $('prog').scrollIntoView({ behavior: 'smooth' });
+  let lock = null;
+  try {
+    try { lock = await navigator.wakeLock.request('screen'); } catch (e) {}
+    const f = await loadFF(); setPct(8);
+
+    log('Reading video...');
+    const v = await getVideo(file);
+    const info = { dur: v.duration, w: v.videoWidth, h: v.videoHeight };
+    log('Making preview frames for Gemini...');
+    const n = Math.min(12, Math.max(4, Math.floor(info.dur / 20)));
+    const frames = await grabFrames(v, n); setPct(20);
+
+    stage(2); log('Asking Gemini for the editing blueprint...');
+    const aspect = radio('aspect');
+    const bp = await askGemini(key, $('model').value, info, frames,
+      $('ins').value.trim() || 'Fast-paced, hype gaming edit.', aspect);
+    const { segs, grade } = clean(bp, info.dur);
+    stage(3); log('Blueprint ready: ' + segs.length + ' cuts. Rendering on your phone...'); setPct(35);
+
+    try { await f.unmount('/in'); } catch (e) {}
+    try { await f.createDir('/in'); } catch (e) {}
+    const f2 = new File([file], 'input.mp4', { type: file.type });
+    try { await f.mount('WORKERFS', { files: [f2] }, '/in'); }
+    catch (e) { await f.writeFile('/in/input.mp4', new Uint8Array(await file.arrayBuffer())); }
+
+    logs = []; try { await f.exec(['-i', '/in/input.mp4']); } catch (e) {}
+    const audio = logs.some(l => /Stream #.*Audio/.test(l));
+
+    const hd = radio('qual') === '1080';
+    const q = hd ? { long: 1920, v: [1080, 1920], preset: 'veryfast', crf: '25' }
+                 : { long: 1280, v: [720, 1280], preset: 'ultrafast', crf: '27' };
+    let W, H;
+    if (aspect.startsWith('9:16')) [W, H] = q.v;
+    else { const sc = Math.min(1, q.long / Math.max(info.w, info.h)); W = ev(info.w * sc); H = ev(info.h * sc); }
+
+    for (let i = 0; i < segs.length; i++) {
+      curProg = p => setPct(35 + 55 * (i + Math.min(1, Math.max(0, p))) / segs.length);
+      await renderSeg(f, i, segs[i], W, H, grade, audio, q);
+      log('Rendered clip ' + (i + 1) + '/' + segs.length); setPct(35 + 55 * (i + 1) / segs.length);
+    }
+
+    log('Joining clips...'); setPct(92);
+    await f.writeFile('/list.txt', new TextEncoder().encode(segs.map((_, i) => `file '/seg${i}.mp4'`).join('\n')));
+    const code = await f.exec(['-f', 'concat', '-safe', '0', '-i', '/list.txt', '-c:v', 'copy',
+      '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '/final.mp4']);
+    if (code !== 0) throw new Error('Could not join clips.');
+    const data = await f.readFile('/final.mp4');
+    for (let i = 0; i < segs.length; i++) { try { await f.deleteFile(`/seg${i}.mp4`); } catch (e) {} }
+    try { await f.deleteFile('/final.mp4'); } catch (e) {}
+
+    const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+    $('vid').src = url; $('dl').href = url;
+    $('bp').innerHTML = segs.map(s => `<div class="bp"><b>${s.a.toFixed(1)}-${s.b.toFixed(1)}s</b> | ${s.sp}x | zoom ${s.z} | ${s.fx}<br>${String(s.why).replace(/</g, '&lt;')}</div>`).join('');
+    stage(5); $('res').classList.remove('hide'); setPct(100); log('Done! Your video is ready.');
+    $('res').scrollIntoView({ behavior: 'smooth' });
+  } catch 
