@@ -23,10 +23,12 @@ textarea{min-height:96px;resize:vertical}
 .row{display:flex;gap:8px;align-items:center}
 .eye{flex:none;width:48px;height:48px;border:1px solid var(--line);background:rgba(0,0,0,.35);border-radius:14px;color:var(--txt);font-size:18px}
 .chk{display:flex;gap:9px;align-items:center;margin-top:10px;font-size:13px;color:var(--mut)}.chk input{width:18px;height:18px;accent-color:var(--neon)}
-.file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
-.drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 12px;border:2px dashed #00ffa366;border-radius:18px;background:linear-gradient(180deg,#00ffa30d,#00c2ff08);cursor:pointer}
-.drop:active{transform:scale(.99)}.drop .ic{font-size:30px}.drop b{font-size:15px}.drop span{font-size:12px;color:var(--mut);word-break:break-all}
+.drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 12px;border:2px dashed #00ffa366;border-radius:18px;background:linear-gradient(180deg,#00ffa30d,#00c2ff08);overflow:hidden}
+.drop .ic{font-size:30px}.drop b{font-size:15px}.drop span{font-size:12px;color:var(--mut);word-break:break-all}
 .drop.has{border-style:solid;background:linear-gradient(180deg,#00ffa31f,#00c2ff12)}
+.file{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;z-index:2}
+.pill{margin-top:10px;font-size:12px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);color:var(--mut);background:rgba(255,255,255,.03)}
+.pill.ok{color:var(--neon);border-color:#00ffa355}.pill.bad{color:#ff8a8a;border-color:#ff6b6b66}
 .seg{display:flex;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label{flex:1;text-align:center;padding:10px 4px;border-radius:10px;font-size:13px;color:var(--mut);cursor:pointer}
@@ -37,6 +39,7 @@ textarea{min-height:96px;resize:vertical}
 .go{width:100%;margin-top:16px;padding:17px;border:0;border-radius:16px;font:800 17px system-ui;color:#00110a;background:linear-gradient(90deg,var(--neon),var(--cyan));box-shadow:0 8px 28px #00ffa344}
 .go:active{transform:scale(.98)}.go:disabled{opacity:.55;box-shadow:none}
 .note{font-size:12px;color:var(--mut);margin-top:10px;text-align:center}
+.msg{margin-top:12px;color:#ff9a9a;font-size:13px;text-align:center}
 .warn{background:#ffb02022;border:1px solid #ffb02066;color:#ffd488;border-radius:14px;padding:12px;font-size:13px;margin-bottom:12px}
 .steps{display:flex;justify-content:space-between;gap:6px;margin-bottom:12px}
 .st{flex:1;text-align:center;font-size:11px;color:var(--mut);padding:8px 2px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
@@ -46,7 +49,8 @@ textarea{min-height:96px;resize:vertical}
 .bar{height:10px;background:rgba(0,0,0,.4);border-radius:9px;overflow:hidden;border:1px solid var(--line)}
 #fill{height:100%;width:0;background:linear-gradient(90deg,var(--neon),var(--cyan),var(--vio));transition:width .4s}
 pre{background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:12px;padding:10px;max-height:160px;overflow:auto;font-size:12px;color:#8fffc9;white-space:pre-wrap;margin:12px 0 0}
-video{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-height:60vh}
+pre#dbg{color:#ff9a9a;border-color:#ff6b6b66}
+video#vid{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-height:60vh}
 .bp{font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding:7px 0}.bp b{color:var(--neon)}
 .hide{display:none}.err{color:#ff7b7b}
 .foot{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}.foot b{color:var(--neon)}
@@ -55,7 +59,8 @@ video{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-heigh
 <div class="top"><div class="logo">&#9889;</div>
 <div><h1>Magic Video Editor</h1><span class="badge">BY DESHMUKH GAMER</span></div></div>
 
-<div id="sandbox" class="warn hide"><b>Yahan file nahi chunegi.</b> Ye Claude ke preview ke andar khula hai. Is file ko GitHub Pages par daalo aur uska link Chrome mein kholo.</div>
+<div id="sandbox" class="warn hide"><b>File yahan nahi chunegi.</b> Ye Claude ke preview / local file ke andar khula hai. Is file ko GitHub Pages par daalo aur uska link Chrome mein kholo.</div>
+<pre id="dbg" class="hide"></pre>
 
 <div class="card">
 <div class="lbl"><i>1</i>Gemini API Key</div>
@@ -67,8 +72,11 @@ video{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-heigh
 <select id="model"><option>gemini-2.5-flash</option><option>gemini-2.5-pro</option><option>gemini-2.5-flash-lite</option></select>
 
 <div class="lbl"><i>3</i>Gameplay Video</div>
-<input class="file" id="file" type="file" accept="video/*,.mp4,.mov,.mkv">
-<label class="drop" id="drop" for="file"><div class="ic">&#127916;</div><b id="dn">Tap to choose video</b><span id="ds">MP4 (H.264) works best</span></label>
+<label class="drop" id="drop">
+<input class="file" id="file" type="file" accept="video/*">
+<div class="ic">&#127916;</div><b id="dn">Tap to choose video</b><span id="ds">MP4 (H.264) works best</span></label>
+<div class="pill" id="vi">Video: not chosen yet</div>
+<div class="pill" id="eng">&#9203; Starting... (agar ye hamesha dikhe, to JS nahi chal rahi - GitHub Pages link Chrome mein kholo)</div>
 
 <div class="two">
 <div><div class="lbl"><i>4</i>Format</div>
@@ -84,7 +92,8 @@ video{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-heigh
 <div class="chips" id="chips">
 <button type="button">Fast cuts + zoom on kills</button><button type="button">Cinematic slow-mo montage</button><button type="button">Hype Shorts, flash transitions</button></div>
 
-<button class="go" id="go">&#10024; Start Magic Edit</button>
+<button class="go" id="go" type="button">&#10024; Start Magic Edit</button>
+<div class="msg hide" id="msg"></div>
 <div class="note">Keep this tab open and screen on while rendering. 720p is faster.</div>
 </div>
 
@@ -101,39 +110,42 @@ video{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-heigh
 
 <script>
 const $ = i => document.getElementById(i);
+
+// ---- visible error reporting (so failures are never silent) ----
+function dbg(t) { const d = $('dbg'); d.classList.remove('hide'); d.textContent += t + '\n'; }
+window.addEventListener('error', e => dbg('JS error: ' + e.message));
+window.addEventListener('unhandledrejection', e => dbg('Error: ' + ((e.reason && e.reason.message) || e.reason)));
+
+// ---- safe storage (throws in sandboxed iframes) ----
+const ls = {
+  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
+  del: k => { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
 const FF_BASE = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd';
 const CORE_BASE = 'https://unpkg.com/@ffmpeg/core@0.12.3/dist/umd';
-let ff = null, logs = [], curProg = () => {};
+let ffPromise = null, logs = [], curProg = () => {};
 
 const log = m => { $('logb').textContent += m + '\n'; $('logb').scrollTop = 1e9; };
 const setPct = p => { $('fill').style.width = p + '%'; };
 const ev = n => Math.max(2, Math.floor(n / 2) * 2);
 const cl = (v, lo, hi, d) => { v = parseFloat(v); return isNaN(v) ? d : Math.min(hi, Math.max(lo, v)); };
 const radio = n => document.querySelector('input[name=' + n + ']:checked').value;
+const fmt = d => Math.floor(d / 60) + 'm ' + Math.round(d % 60) + 's';
 function stage(n) { for (let i = 1; i <= 4; i++) $('s' + i).className = 'st' + (i < n ? ' ok' : i === n ? ' on' : ''); }
+function pill(id, text, cls) { const e = $(id); e.textContent = text; e.className = 'pill' + (cls ? ' ' + cls : ''); }
+function msg(t) { const m = $('msg'); m.textContent = t || ''; m.classList.toggle('hide', !t); }
 
-// sandbox warning (Claude preview iframe / file://)
-try { if (window.self !== window.top || location.origin === 'null' || location.protocol === 'file:') $('sandbox').classList.remove('hide'); } catch (e) { $('sandbox').classList.remove('hide'); }
-
-$('show').onclick = () => { $('key').type = $('key').type === 'password' ? 'text' : 'password'; };
-if (localStorage.gk) { $('key').value = localStorage.gk; $('rem').checked = true; }
-document.querySelectorAll('#chips button').forEach(b => b.onclick = () => { $('ins').value = b.textContent; });
-$('file').onchange = () => {
-  const f = $('file').files[0];
-  if (!f) { $('drop').classList.remove('has'); $('dn').textContent = 'Tap to choose video'; $('ds').textContent = 'MP4 (H.264) works best'; return; }
-  $('drop').classList.add('has'); $('dn').textContent = '\u2705 Video selected';
-  $('ds').textContent = f.name + ' \u2022 ' + (f.size / 1048576).toFixed(1) + ' MB';
-};
-
+// ---- ffmpeg engine (shared promise, so it loads only once) ----
 async function blobURL(url, type, patch) {
   const r = await fetch(url);
-  if (!r.ok) throw new Error('Download failed: ' + url);
+  if (!r.ok) throw new Error('Download failed (' + r.status + '): ' + url);
   const body = patch ? patch(await r.text()) : await r.blob();
   return URL.createObjectURL(new Blob([body], { type }));
 }
 
-async function loadFF() {
-  if (ff) return ff;
+async function initFF() {
   log('Loading video engine (~31 MB, first time only)...');
   const OLD = 'new Worker(new URL(e.p+e.u(814),e.b),{type:void 0})';
   window.__FFW = await blobURL(FF_BASE + '/814.ffmpeg.js', 'text/javascript');
@@ -146,6 +158,7 @@ async function loadFF() {
     s.src = main; s.onload = ok; s.onerror = () => no(new Error('Engine script failed to load'));
     document.head.appendChild(s);
   });
+  if (typeof FFmpegWASM === 'undefined') throw new Error('Engine did not initialise (FFmpegWASM missing).');
   const f = new FFmpegWASM.FFmpeg();
   f.on('log', ({ message }) => { logs.push(message); });
   f.on('progress', ({ progress }) => curProg(progress));
@@ -153,16 +166,36 @@ async function loadFF() {
     coreURL: await blobURL(CORE_BASE + '/ffmpeg-core.js', 'text/javascript'),
     wasmURL: await blobURL(CORE_BASE + '/ffmpeg-core.wasm', 'application/wasm')
   });
-  ff = f; return f;
+  return f;
+}
+function loadFF() {
+  if (!ffPromise) ffPromise = initFF().catch(e => { ffPromise = null; throw e; });
+  return ffPromise;
+}
+function warmEngine() {
+  pill('eng', 'Engine: loading (~31 MB, one time)...');
+  loadFF().then(() => pill('eng', 'Engine ready \u2713', 'ok'))
+          .catch(e => pill('eng', 'Engine failed: ' + e.message + ' (tap Start to retry)', 'bad'));
 }
 
+// ---- video reading ----
 function getVideo(file) {
   return new Promise((ok, no) => {
     const v = document.createElement('video');
-    v.preload = 'auto'; v.muted = true; v.playsInline = true;
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+    v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+    document.body.appendChild(v);
+    const to = setTimeout(() => { v.remove(); no(new Error('Video took too long to load. Try an H.264 MP4.')); }, 25000);
+    v.onloadeddata = () => {
+      clearTimeout(to);
+      if (!isFinite(v.duration) || !v.videoWidth) { v.remove(); no(new Error('Could not read video length/size.')); }
+      else ok(v);
+    };
+    v.onerror = () => { clearTimeout(to); v.remove(); no(new Error('This browser cannot play this video (maybe HEVC/H.265). Use an H.264 MP4.')); };
     v.src = URL.createObjectURL(file);
-    v.onloadedmetadata = () => ok(v);
-    v.onerror = () => no(new Error('Cannot read this video. Please use an MP4 (H.264).'));
+    v.load();
+    const p = v.play(); if (p && p.then) p.then(() => v.pause()).catch(() => {});
   });
 }
 
@@ -170,15 +203,21 @@ async function grabFrames(v, n) {
   const w = 480, h = Math.round(480 * v.videoHeight / v.videoWidth);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'), out = [];
+  v.pause();
   for (let i = 0; i < n; i++) {
     const t = v.duration * (i + 0.5) / n;
-    await new Promise(r => { v.onseeked = r; v.currentTime = t; setTimeout(r, 5000); });
+    await new Promise(r => {
+      let done = false; const fin = () => { if (!done) { done = true; r(); } };
+      v.onseeked = fin; setTimeout(fin, 8000); v.currentTime = t;
+    });
+    await new Promise(r => requestAnimationFrame(() => r()));
     g.drawImage(v, 0, 0, w, h);
     out.push([t, c.toDataURL('image/jpeg', 0.6).split(',')[1]]);
   }
   return out;
 }
 
+// ---- Gemini ----
 const SYSTEM = 'You are an elite Indian gaming YouTube/Shorts video editor. You get sparse sample frames and the creator\'s style brief. Reply with ONLY one valid JSON object. No markdown, no commentary.';
 
 async function askGemini(key, model, info, frames, instr, aspect) {
@@ -231,6 +270,7 @@ function clean(bp, dur) {
   return { segs, grade: [cl(g.contrast, 0.8, 1.4, 1.1), cl(g.saturation, 0.8, 1.8, 1.2), cl(g.brightness, -0.1, 0.1, 0)] };
 }
 
+// ---- rendering ----
 async function renderSeg(f, i, s, W, H, grade, audio, q) {
   const d = s.b - s.a, vf = [`scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`];
   if (s.fx === 'shake') {
@@ -252,66 +292,31 @@ async function renderSeg(f, i, s, W, H, grade, audio, q) {
 }
 
 async function main() {
+  msg('');
   const key = $('key').value.trim(), file = $('file').files[0];
-  if (!key) return alert('Enter your Gemini API key');
-  if (!file) return alert('Choose a video first');
-  if ($('rem').checked) localStorage.gk = key; else localStorage.removeItem('gk');
+  if (!key) return msg('Pehle Gemini API key daalo.');
+  if (!file) return msg('Pehle video choose karo (Tap to choose video).');
+  if ($('rem').checked) ls.set('gk', key); else ls.del('gk');
   $('go').disabled = true; $('prog').classList.remove('hide'); $('res').classList.add('hide');
   $('logb').textContent = ''; setPct(2); stage(1);
   $('prog').scrollIntoView({ behavior: 'smooth' });
-  let lock = null;
+  let lock = null, v = null;
   try {
     try { lock = await navigator.wakeLock.request('screen'); } catch (e) {}
-    const f = await loadFF(); setPct(8);
+    log('Starting video engine...');
+    const f = await loadFF(); pill('eng', 'Engine ready \u2713', 'ok'); setPct(8);
 
     log('Reading video...');
-    const v = await getVideo(file);
+    v = await getVideo(file);
     const info = { dur: v.duration, w: v.videoWidth, h: v.videoHeight };
+    log('Video: ' + info.w + 'x' + info.h + ', ' + fmt(info.dur));
     log('Making preview frames for Gemini...');
     const n = Math.min(12, Math.max(4, Math.floor(info.dur / 20)));
-    const frames = await grabFrames(v, n); setPct(20);
+    const frames = await grabFrames(v, n); v.remove(); v = null; setPct(20);
 
     stage(2); log('Asking Gemini for the editing blueprint...');
     const aspect = radio('aspect');
     const bp = await askGemini(key, $('model').value, info, frames,
       $('ins').value.trim() || 'Fast-paced, hype gaming edit.', aspect);
     const { segs, grade } = clean(bp, info.dur);
-    stage(3); log('Blueprint ready: ' + segs.length + ' cuts. Rendering on your phone...'); setPct(35);
-
-    try { await f.unmount('/in'); } catch (e) {}
-    try { await f.createDir('/in'); } catch (e) {}
-    const f2 = new File([file], 'input.mp4', { type: file.type });
-    try { await f.mount('WORKERFS', { files: [f2] }, '/in'); }
-    catch (e) { await f.writeFile('/in/input.mp4', new Uint8Array(await file.arrayBuffer())); }
-
-    logs = []; try { await f.exec(['-i', '/in/input.mp4']); } catch (e) {}
-    const audio = logs.some(l => /Stream #.*Audio/.test(l));
-
-    const hd = radio('qual') === '1080';
-    const q = hd ? { long: 1920, v: [1080, 1920], preset: 'veryfast', crf: '25' }
-                 : { long: 1280, v: [720, 1280], preset: 'ultrafast', crf: '27' };
-    let W, H;
-    if (aspect.startsWith('9:16')) [W, H] = q.v;
-    else { const sc = Math.min(1, q.long / Math.max(info.w, info.h)); W = ev(info.w * sc); H = ev(info.h * sc); }
-
-    for (let i = 0; i < segs.length; i++) {
-      curProg = p => setPct(35 + 55 * (i + Math.min(1, Math.max(0, p))) / segs.length);
-      await renderSeg(f, i, segs[i], W, H, grade, audio, q);
-      log('Rendered clip ' + (i + 1) + '/' + segs.length); setPct(35 + 55 * (i + 1) / segs.length);
-    }
-
-    log('Joining clips...'); setPct(92);
-    await f.writeFile('/list.txt', new TextEncoder().encode(segs.map((_, i) => `file '/seg${i}.mp4'`).join('\n')));
-    const code = await f.exec(['-f', 'concat', '-safe', '0', '-i', '/list.txt', '-c:v', 'copy',
-      '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '/final.mp4']);
-    if (code !== 0) throw new Error('Could not join clips.');
-    const data = await f.readFile('/final.mp4');
-    for (let i = 0; i < segs.length; i++) { try { await f.deleteFile(`/seg${i}.mp4`); } catch (e) {} }
-    try { await f.deleteFile('/final.mp4'); } catch (e) {}
-
-    const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-    $('vid').src = url; $('dl').href = url;
-    $('bp').innerHTML = segs.map(s => `<div class="bp"><b>${s.a.toFixed(1)}-${s.b.toFixed(1)}s</b> | ${s.sp}x | zoom ${s.z} | ${s.fx}<br>${String(s.why).replace(/</g, '&lt;')}</div>`).join('');
-    stage(5); $('res').classList.remove('hide'); setPct(100); log('Done! Your video is ready.');
-    $('res').scrollIntoView({ behavior: 'smooth' });
-  } catch 
+    stage(3); log('Blueprint ready: ' + segs.length + ' cuts. Rendering 
