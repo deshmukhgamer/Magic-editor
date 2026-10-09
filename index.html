@@ -1,322 +1,164 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#070b12">
-<title>Deshmukh Gamer - Magic Video Editor</title>
-<style>
-:root{--bg:#070b12;--card:rgba(255,255,255,.045);--line:rgba(255,255,255,.09);--neon:#00ffa3;--cyan:#00c2ff;--vio:#7c5cff;--txt:#e6eef8;--mut:#8493a8}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;min-height:100vh;color:var(--txt);font:15px/1.45 system-ui,-apple-system,sans-serif;
-background:radial-gradient(600px 400px at 10% -5%,#00ffa322,transparent),radial-gradient(500px 400px at 100% 10%,#7c5cff26,transparent),var(--bg);
-padding:calc(14px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom))}
-.wrap{max-width:560px;margin:auto}
-.top{display:flex;align-items:center;gap:12px;margin:4px 0 16px}
-.logo{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:linear-gradient(135deg,var(--neon),var(--cyan));box-shadow:0 0 22px #00ffa355}
-.top h1{margin:0;font-size:21px;letter-spacing:-.01em}
-.badge{display:inline-block;margin-top:3px;font-size:11px;font-weight:800;letter-spacing:.14em;padding:3px 9px;border-radius:99px;color:#00110a;background:linear-gradient(90deg,var(--neon),var(--cyan))}
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-.lbl{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--mut);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.08em}
-.lbl:first-child{margin-top:0}.lbl i{font-style:normal;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;font-size:11px;color:#00110a;background:linear-gradient(135deg,var(--neon),var(--cyan))}
-input[type=password],input[type=text],select,textarea{width:100%;background:rgba(0,0,0,.35);color:var(--txt);border:1px solid var(--line);border-radius:14px;padding:13px;font:inherit;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--neon);box-shadow:0 0 0 3px #00ffa322}
-textarea{min-height:96px;resize:vertical}
-.row{display:flex;gap:8px;align-items:center}
-.eye{flex:none;width:48px;height:48px;border:1px solid var(--line);background:rgba(0,0,0,.35);border-radius:14px;color:var(--txt);font-size:18px}
-.chk{display:flex;gap:9px;align-items:center;margin-top:10px;font-size:13px;color:var(--mut)}.chk input{width:18px;height:18px;accent-color:var(--neon)}
-.drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 12px;border:2px dashed #00ffa366;border-radius:18px;background:linear-gradient(180deg,#00ffa30d,#00c2ff08);overflow:hidden}
-.drop .ic{font-size:30px}.drop b{font-size:15px}.drop span{font-size:12px;color:var(--mut);word-break:break-all}
-.drop.has{border-style:solid;background:linear-gradient(180deg,#00ffa31f,#00c2ff12)}
-.file{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;z-index:2}
-.pill{margin-top:10px;font-size:12px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);color:var(--mut);background:rgba(255,255,255,.03)}
-.pill.ok{color:var(--neon);border-color:#00ffa355}.pill.bad{color:#ff8a8a;border-color:#ff6b6b66}
-.seg{display:flex;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
-.seg input{position:absolute;opacity:0;pointer-events:none}
-.seg label{flex:1;text-align:center;padding:10px 4px;border-radius:10px;font-size:13px;color:var(--mut);cursor:pointer}
-.seg input:checked+label{background:linear-gradient(90deg,var(--neon),var(--cyan));color:#00110a;font-weight:800}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.chips button{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);border-radius:99px;padding:7px 11px;font-size:12px}
-.go{width:100%;margin-top:16px;padding:17px;border:0;border-radius:16px;font:800 17px system-ui;color:#00110a;background:linear-gradient(90deg,var(--neon),var(--cyan));box-shadow:0 8px 28px #00ffa344}
-.go:active{transform:scale(.98)}.go:disabled{opacity:.55;box-shadow:none}
-.note{font-size:12px;color:var(--mut);margin-top:10px;text-align:center}
-.msg{margin-top:12px;color:#ff9a9a;font-size:13px;text-align:center}
-.warn{background:#ffb02022;border:1px solid #ffb02066;color:#ffd488;border-radius:14px;padding:12px;font-size:13px;margin-bottom:12px}
-.steps{display:flex;justify-content:space-between;gap:6px;margin-bottom:12px}
-.st{flex:1;text-align:center;font-size:11px;color:var(--mut);padding:8px 2px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
-.st.on{color:#00110a;font-weight:800;background:linear-gradient(90deg,var(--neon),var(--cyan));border-color:transparent;animation:p 1.2s infinite}
-.st.ok{color:var(--neon);border-color:#00ffa355}
-@keyframes p{50%{opacity:.7}}
-.bar{height:10px;background:rgba(0,0,0,.4);border-radius:9px;overflow:hidden;border:1px solid var(--line)}
-#fill{height:100%;width:0;background:linear-gradient(90deg,var(--neon),var(--cyan),var(--vio));transition:width .4s}
-pre{background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:12px;padding:10px;max-height:160px;overflow:auto;font-size:12px;color:#8fffc9;white-space:pre-wrap;margin:12px 0 0}
-pre#dbg{color:#ff9a9a;border-color:#ff6b6b66}
-video#vid{width:100%;border-radius:16px;background:#000;margin-bottom:12px;max-height:60vh}
-.bp{font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding:7px 0}.bp b{color:var(--neon)}
-.hide{display:none}.err{color:#ff7b7b}
-.foot{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}.foot b{color:var(--neon)}
-</style></head><body><div class="wrap">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Magic AI Editor v3</title>
+  <style>
+    :root {
+      --bg: #0d0f17;
+      --card: #161b26;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.3);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: #262f40;
+      --user-msg: #4f46e5;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* Header */
+    header { padding: 14px 16px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .status-badge { font-size: 0.75rem; background: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 4px 8px; border-radius: 12px; font-weight: 600; }
 
-<div class="top"><div class="logo">&#9889;</div>
-<div><h1>Magic Video Editor</h1><span class="badge">BY DESHMUKH GAMER</span></div></div>
+    /* API Key Banner */
+    #api-banner { background: #1e1b4b; border-bottom: 1px solid #3730a3; padding: 10px 16px; display: flex; gap: 8px; font-size: 0.85rem; align-items: center; }
+    #api-banner input { flex: 1; background: #0f172a; border: 1px solid #312e81; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; }
+    #api-banner button { background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-<div id="sandbox" class="warn hide"><b>File yahan nahi chunegi.</b> Ye Claude ke preview / local file ke andar khula hai. Is file ko GitHub Pages par daalo aur uska link Chrome mein kholo.</div>
-<pre id="dbg" class="hide"></pre>
+    /* Chat Area */
+    #chat-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; }
+    .msg.user { align-self: flex-end; background: var(--user-msg); color: white; border-bottom-right-radius: 2px; }
+    .msg.ai { align-self: flex-start; background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
+    .plan-box { background: #0f172a; border: 1px dashed var(--accent); padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 0.8rem; font-family: monospace; white-space: pre-wrap; }
 
-<div class="card">
-<div class="lbl"><i>1</i>Gemini API Key</div>
-<div class="row"><input id="key" type="password" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
-<button class="eye" type="button" id="show">&#128065;</button></div>
-<label class="chk"><input type="checkbox" id="rem">Remember on this phone (browser only)</label>
+    /* Presets Carousel */
+    .presets { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px; background: rgba(22, 27, 38, 0.8); scrollbar-width: none; }
+    .presets::-webkit-scrollbar { display: none; }
+    .chip { background: var(--card); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 12px; border-radius: 20px; font-size: 0.78rem; white-space: nowrap; cursor: pointer; }
+    .chip:active { background: var(--accent); color: white; }
 
-<div class="lbl"><i>2</i>AI Model</div>
-<select id="model"><option>gemini-2.5-flash</option><option>gemini-2.5-pro</option><option>gemini-2.5-flash-lite</option></select>
+    /* Input Footer */
+    footer { padding: 10px 16px; background: var(--card); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .input-row { display: flex; gap: 8px; align-items: center; }
+    .attach-btn { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    #msg-input { flex: 1; background: #0b0e14; border: 1px solid var(--border); color: white; padding: 10px 14px; border-radius: 20px; font-size: 0.9rem; outline: none; }
+    #msg-input:focus { border-color: var(--accent); }
+    .send-btn { background: var(--accent); color: white; border: none; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
 
-<div class="lbl"><i>3</i>Gameplay Video</div>
-<label class="drop" id="drop">
-<input class="file" id="file" type="file" accept="video/*">
-<div class="ic">&#127916;</div><b id="dn">Tap to choose video</b><span id="ds">MP4 (H.264) works best</span></label>
-<div class="pill" id="vi">Video: not chosen yet</div>
-<div class="pill" id="eng">&#9203; Starting... (agar ye hamesha dikhe, to JS nahi chal rahi - GitHub Pages link Chrome mein kholo)</div>
+  <header>
+    <h1>🎬 Magic AI Editor</h1>
+    <span class="status-badge" id="app-status">Standalone</span>
+  </header>
 
-<div class="two">
-<div><div class="lbl"><i>4</i>Format</div>
-<div class="seg"><input type="radio" name="aspect" id="a1" value="Original" checked><label for="a1">Original</label>
-<input type="radio" name="aspect" id="a2" value="9:16 (Shorts / Reels)"><label for="a2">9:16</label></div></div>
-<div><div class="lbl"><i>5</i>Quality</div>
-<div class="seg"><input type="radio" name="qual" id="q1" value="720" checked><label for="q1">720p</label>
-<input type="radio" name="qual" id="q2" value="1080"><label for="q2">1080p</label></div></div>
-</div>
+  <div id="api-banner">
+    <input type="password" id="gemini-key" placeholder="Enter Gemini API Key...">
+    <button onclick="saveKey()">Save</button>
+  </div>
 
-<div class="lbl"><i>6</i>Editing Instructions</div>
-<textarea id="ins" placeholder="e.g. Edit like Datarx Gaming: fast cuts, zoom-ins on kills, flash transitions, slow-mo on headshots"></textarea>
-<div class="chips" id="chips">
-<button type="button">Fast cuts + zoom on kills</button><button type="button">Cinematic slow-mo montage</button><button type="button">Hype Shorts, flash transitions</button></div>
+  <div id="chat-container">
+    <div class="msg ai">
+      नमस्ते! मैं <b>Magic AI Video Editor</b> हूँ। आप मुझे वीडियो आइडिया, रील कांसेप्ट्स या एडिटिंग स्टाइल्स बता सकते हैं। नीचे दिए गए प्रीसेट्स का इस्तेमाल करें या अपना प्रॉम्प्ट लिखें!
+    </div>
+  </div>
 
-<button class="go" id="go" type="button">&#10024; Start Magic Edit</button>
-<div class="msg hide" id="msg"></div>
-<div class="note">Keep this tab open and screen on while rendering. 720p is faster.</div>
-</div>
+  <div class="presets">
+    <div class="chip" onclick="quickSend('Velocity Edit with Phonk sync')">⚡ Velocity Edit</div>
+    <div class="chip" onclick="quickSend('Cinematic Color Grade plan')">🎨 Cinematic Grade</div>
+    <div class="chip" onclick="quickSend('Suggest Dark Phonk Music query')">🎵 Phonk Music</div>
+    <div class="chip" onclick="quickSend('Headlight Glow & Motion Blur')">✨ Car Glow Edit</div>
+  </div>
 
-<div class="card hide" id="prog">
-<div class="steps"><div class="st" id="s1">Analyze</div><div class="st" id="s2">AI Plan</div><div class="st" id="s3">Render</div><div class="st" id="s4">Done</div></div>
-<div class="bar"><div id="fill"></div></div><pre id="logb"></pre></div>
+  <footer>
+    <div class="input-row">
+      <input type="file" id="video-file" accept="video/*" style="display:none" onchange="fileSelected(this)">
+      <button class="attach-btn" onclick="document.getElementById('video-file').click()">➕</button>
+      <input type="text" id="msg-input" placeholder="Type instructions or ideas..." onkeydown="if(event.key==='Enter') send()">
+      <button class="send-btn" onclick="send()">➤</button>
+    </div>
+  </footer>
 
-<div class="card hide" id="res"><video id="vid" controls playsinline></video>
-<a id="dl" download="edited_by_deshmukh_gamer.mp4"><button class="go" style="margin-top:0" type="button">&#11015; Download Video</button></a>
-<div id="bp" style="margin-top:12px"></div></div>
+  <script>
+    let API_KEY = localStorage.getItem("GEMINI_KEY") || "";
+    if (API_KEY) document.getElementById("gemini-key").value = API_KEY;
 
-<div class="foot">Created by <b>Deshmukh Gamer</b></div>
-</div>
+    function saveKey() {
+      const k = document.getElementById("gemini-key").value.trim();
+      if (!k) return alert("Please enter a valid key!");
+      localStorage.setItem("GEMINI_KEY", k);
+      API_KEY = k;
+      alert("API Key Saved!");
+    }
 
-<script>
-const $ = i => document.getElementById(i);
+    function appendMessage(text, sender, isPlan = false) {
+      const box = document.getElementById("chat-container");
+      const div = document.createElement("div");
+      div.className = `msg ${sender}`;
+      if (isPlan) {
+        div.innerHTML = `<div>${text.summary || "AI Blueprint Ready"}</div><pre class="plan-box">${JSON.stringify(text, null, 2)}</pre>`;
+      } else {
+        div.innerText = text;
+      }
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
 
-// ---- visible error reporting (so failures are never silent) ----
-function dbg(t) { const d = $('dbg'); d.classList.remove('hide'); d.textContent += t + '\n'; }
-window.addEventListener('error', e => dbg('JS error: ' + e.message));
-window.addEventListener('unhandledrejection', e => dbg('Error: ' + ((e.reason && e.reason.message) || e.reason)));
+    function quickSend(txt) {
+      document.getElementById("msg-input").value = txt;
+      send();
+    }
 
-// ---- safe storage (throws in sandboxed iframes) ----
-const ls = {
-  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
-  del: k => { try { localStorage.removeItem(k); } catch (e) {} }
-};
+    function fileSelected(input) {
+      if (input.files.length > 0) {
+        appendMessage(`Attached video: ${input.files[0].name}`, "user");
+        appendMessage(`Video received (${input.files[0].name}). Ab bataiye ispe kaisa edit karna hai? (e.g., Velocity, Reel, Cinematic)`, "ai");
+      }
+    }
 
-const FF_BASE = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd';
-const CORE_BASE = 'https://unpkg.com/@ffmpeg/core@0.12.3/dist/umd';
-let ffPromise = null, logs = [], curProg = () => {};
+    async function send() {
+      const input = document.getElementById("msg-input");
+      const userText = input.value.trim();
+      if (!userText) return;
 
-const log = m => { $('logb').textContent += m + '\n'; $('logb').scrollTop = 1e9; };
-const setPct = p => { $('fill').style.width = p + '%'; };
-const ev = n => Math.max(2, Math.floor(n / 2) * 2);
-const cl = (v, lo, hi, d) => { v = parseFloat(v); return isNaN(v) ? d : Math.min(hi, Math.max(lo, v)); };
-const radio = n => document.querySelector('input[name=' + n + ']:checked').value;
-const fmt = d => Math.floor(d / 60) + 'm ' + Math.round(d % 60) + 's';
-function stage(n) { for (let i = 1; i <= 4; i++) $('s' + i).className = 'st' + (i < n ? ' ok' : i === n ? ' on' : ''); }
-function pill(id, text, cls) { const e = $(id); e.textContent = text; e.className = 'pill' + (cls ? ' ' + cls : ''); }
-function msg(t) { const m = $('msg'); m.textContent = t || ''; m.classList.toggle('hide', !t); }
+      if (!API_KEY) {
+        alert("Please enter and save your Gemini API Key at the top first!");
+        return;
+      }
 
-// ---- ffmpeg engine (shared promise, so it loads only once) ----
-async function blobURL(url, type, patch) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('Download failed (' + r.status + '): ' + url);
-  const body = patch ? patch(await r.text()) : await r.blob();
-  return URL.createObjectURL(new Blob([body], { type }));
-}
+      appendMessage(userText, "user");
+      input.value = "";
 
-async function initFF() {
-  log('Loading video engine (~31 MB, first time only)...');
-  const OLD = 'new Worker(new URL(e.p+e.u(814),e.b),{type:void 0})';
-  window.__FFW = await blobURL(FF_BASE + '/814.ffmpeg.js', 'text/javascript');
-  const main = await blobURL(FF_BASE + '/ffmpeg.js', 'text/javascript', t => {
-    if (!t.includes(OLD)) throw new Error('Engine patch failed (library changed).');
-    return t.replace(OLD, 'new Worker(window.__FFW,{type:void 0})');
-  });
-  await new Promise((ok, no) => {
-    const s = document.createElement('script');
-    s.src = main; s.onload = ok; s.onerror = () => no(new Error('Engine script failed to load'));
-    document.head.appendChild(s);
-  });
-  if (typeof FFmpegWASM === 'undefined') throw new Error('Engine did not initialise (FFmpegWASM missing).');
-  const f = new FFmpegWASM.FFmpeg();
-  f.on('log', ({ message }) => { logs.push(message); });
-  f.on('progress', ({ progress }) => curProg(progress));
-  await f.load({
-    coreURL: await blobURL(CORE_BASE + '/ffmpeg-core.js', 'text/javascript'),
-    wasmURL: await blobURL(CORE_BASE + '/ffmpeg-core.wasm', 'application/wasm')
-  });
-  return f;
-}
-function loadFF() {
-  if (!ffPromise) ffPromise = initFF().catch(e => { ffPromise = null; throw e; });
-  return ffPromise;
-}
-function warmEngine() {
-  pill('eng', 'Engine: loading (~31 MB, one time)...');
-  loadFF().then(() => pill('eng', 'Engine ready \u2713', 'ok'))
-          .catch(e => pill('eng', 'Engine failed: ' + e.message + ' (tap Start to retry)', 'bad'));
-}
+      const systemPrompt = `You are Magic AI, a world-class autonomous video editor assistant. 
+Reply concisely in simple Hinglish or English.
+For video edits, give concrete steps: speed ramps, cuts, SFX, and color grading. 
+Always output clean, actionable advice.`;
 
-// ---- video reading ----
-function getVideo(file) {
-  return new Promise((ok, no) => {
-    const v = document.createElement('video');
-    v.muted = true; v.playsInline = true; v.preload = 'auto';
-    v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
-    v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
-    document.body.appendChild(v);
-    const to = setTimeout(() => { v.remove(); no(new Error('Video took too long to load. Try an H.264 MP4.')); }, 25000);
-    v.onloadeddata = () => {
-      clearTimeout(to);
-      if (!isFinite(v.duration) || !v.videoWidth) { v.remove(); no(new Error('Could not read video length/size.')); }
-      else ok(v);
-    };
-    v.onerror = () => { clearTimeout(to); v.remove(); no(new Error('This browser cannot play this video (maybe HEVC/H.265). Use an H.264 MP4.')); };
-    v.src = URL.createObjectURL(file);
-    v.load();
-    const p = v.play(); if (p && p.then) p.then(() => v.pause()).catch(() => {});
-  });
-}
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: ${userText}` }] }]
+          })
+        });
 
-async function grabFrames(v, n) {
-  const w = 480, h = Math.round(480 * v.videoHeight / v.videoWidth);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d'), out = [];
-  v.pause();
-  for (let i = 0; i < n; i++) {
-    const t = v.duration * (i + 0.5) / n;
-    await new Promise(r => {
-      let done = false; const fin = () => { if (!done) { done = true; r(); } };
-      v.onseeked = fin; setTimeout(fin, 8000); v.currentTime = t;
-    });
-    await new Promise(r => requestAnimationFrame(() => r()));
-    g.drawImage(v, 0, 0, w, h);
-    out.push([t, c.toDataURL('image/jpeg', 0.6).split(',')[1]]);
-  }
-  return out;
-}
-
-// ---- Gemini ----
-const SYSTEM = 'You are an elite Indian gaming YouTube/Shorts video editor. You get sparse sample frames and the creator\'s style brief. Reply with ONLY one valid JSON object. No markdown, no commentary.';
-
-async function askGemini(key, model, info, frames, instr, aspect) {
-  const parts = [];
-  frames.forEach(([t, b]) => {
-    parts.push({ text: 'Frame at ' + t.toFixed(1) + 's:' });
-    parts.push({ inlineData: { mimeType: 'image/jpeg', data: b } });
-  });
-  parts.push({ text: `Raw gameplay video: ${info.dur.toFixed(1)}s, ${info.w}x${info.h}.
-Frames above are sparse samples, so when unsure keep continuous action.
-Output format: ${aspect}
-CREATOR BRIEF: ${instr}
-
-Return JSON exactly like:
-{"title": "...", "grade": {"contrast": 1.1, "saturation": 1.3, "brightness": 0.0},
- "segments": [{"start": 0.0, "end": 6.5, "speed": 1.0, "zoom": 1.0, "effect": "none|flash|shake", "reason": "..."}]}
-
-Rules: segments chronological, non-overlapping, inside 0..${info.dur.toFixed(1)}s, usually 1-15s each.
-Cut dead/boring parts, keep action. speed 0.5-2.0 (slow-mo 0.5-0.7 on big kills, 1.25-1.5 on filler).
-zoom 1.0-1.4 punch-ins on hype moments. flash = white flash at a segment start (impact transition),
-shake = screen shake (explosions). grade: contrast 0.9-1.3, saturation 1.0-1.6, brightness -0.05..0.05.` });
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key);
-  const r = await fetch(url, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ role: 'user', parts }],
-      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }
-    })
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error('Gemini API error ' + r.status + ': ' + ((j.error && j.error.message) || ''));
-  const text = ((j.candidates && j.candidates[0] && j.candidates[0].content.parts) || []).map(p => p.text || '').join('');
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('Gemini gave an empty reply. Try again or change the model.');
-  return JSON.parse(m[0]);
-}
-
-function clean(bp, dur) {
-  let last = 0; const segs = [];
-  for (const s of bp.segments || []) {
-    const a = Math.max(parseFloat(s.start), last), b = Math.min(parseFloat(s.end), dur);
-    if (isNaN(a) || isNaN(b) || b - a < 0.5) continue;
-    segs.push({ a, b, sp: cl(s.speed, 0.5, 2, 1), z: cl(s.zoom, 1, 1.5, 1),
-      fx: ['flash', 'shake'].includes(s.effect) ? s.effect : 'none', why: s.reason || '' });
-    last = b;
-  }
-  if (!segs.length) throw new Error('Gemini returned no usable cuts. Try different instructions.');
-  const g = bp.grade || {};
-  return { segs, grade: [cl(g.contrast, 0.8, 1.4, 1.1), cl(g.saturation, 0.8, 1.8, 1.2), cl(g.brightness, -0.1, 0.1, 0)] };
-}
-
-// ---- rendering ----
-async function renderSeg(f, i, s, W, H, grade, audio, q) {
-  const d = s.b - s.a, vf = [`scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`];
-  if (s.fx === 'shake') {
-    const k = s.z * 1.08;
-    vf.push(`scale=${ev(W * k)}:${ev(H * k)},crop=${W}:${H}:x='(iw-ow)/2+sin(t*45)*12':y='(ih-oh)/2+cos(t*38)*12'`);
-  } else if (s.z > 1.01) vf.push(`scale=${ev(W * s.z)}:${ev(H * s.z)},crop=${W}:${H}`);
-  if (s.sp !== 1) vf.push(`setpts=PTS/${s.sp.toFixed(3)}`);
-  vf.push(`eq=contrast=${grade[0].toFixed(2)}:saturation=${grade[1].toFixed(2)}:brightness=${grade[2].toFixed(2)}`);
-  if (s.fx === 'flash') vf.push('fade=t=in:st=0:d=0.25:color=white');
-  vf.push('fps=30', 'format=yuv420p');
-  const a = ['-ss', s.a.toFixed(3), '-t', d.toFixed(3), '-i', '/in/input.mp4'];
-  if (!audio) a.push('-f', 'lavfi', '-t', d.toFixed(3), '-i', 'anullsrc=r=44100:cl=stereo');
-  a.push('-vf', vf.join(','));
-  if (audio) a.push('-af', (s.sp !== 1 ? `atempo=${s.sp.toFixed(3)},` : '') + 'aresample=44100');
-  a.push('-map', '0:v:0', '-map', audio ? '0:a:0' : '1:a:0', '-c:v', 'libx264', '-preset', q.preset, '-crf', q.crf,
-    '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-shortest', `/seg${i}.mp4`);
-  const code = await f.exec(a);
-  if (code !== 0) throw new Error('FFmpeg failed on clip ' + (i + 1) + '\n' + logs.slice(-4).join('\n'));
-}
-
-async function main() {
-  msg('');
-  const key = $('key').value.trim(), file = $('file').files[0];
-  if (!key) return msg('Pehle Gemini API key daalo.');
-  if (!file) return msg('Pehle video choose karo (Tap to choose video).');
-  if ($('rem').checked) ls.set('gk', key); else ls.del('gk');
-  $('go').disabled = true; $('prog').classList.remove('hide'); $('res').classList.add('hide');
-  $('logb').textContent = ''; setPct(2); stage(1);
-  $('prog').scrollIntoView({ behavior: 'smooth' });
-  let lock = null, v = null;
-  try {
-    try { lock = await navigator.wakeLock.request('screen'); } catch (e) {}
-    log('Starting video engine...');
-    const f = await loadFF(); pill('eng', 'Engine ready \u2713', 'ok'); setPct(8);
-
-    log('Reading video...');
-    v = await getVideo(file);
-    const info = { dur: v.duration, w: v.videoWidth, h: v.videoHeight };
-    log('Video: ' + info.w + 'x' + info.h + ', ' + fmt(info.dur));
-    log('Making preview frames for Gemini...');
-    const n = Math.min(12, Math.max(4, Math.floor(info.dur / 20)));
-    const frames = await grabFrames(v, n); v.remove(); v = null; setPct(20);
-
-    stage(2); log('Asking Gemini for the editing blueprint...');
-    const aspect = radio('aspect');
-    const bp = await askGemini(key, $('model').value, info, frames,
-      $('ins').value.trim() || 'Fast-paced, hype gaming edit.', aspect);
-    const { segs, grade } = clean(bp, info.dur);
-    stage(3); log('Blueprint ready: ' + segs.length + ' cuts. Rendering 
+        const data = await res.json();
+        if (data.candidates && data.candidates[0].content) {
+          const reply = data.candidates[0].content.parts[0].text;
+          appendMessage(reply, "ai");
+        } else {
+          appendMessage("Error: AI reply could not be generated. Check your API key.", "ai");
+        }
+      } catch (e) {
+        appendMessage("Network/API Error: " + e.message, "ai");
+      }
+    }
+  </script>
+</body>
+</html>
