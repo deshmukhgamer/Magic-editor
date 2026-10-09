@@ -1,162 +1,172 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Magic AI Editor v3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magic AI Editor</title>
   <style>
-    :root {
-      --bg: #0d0f17;
-      --card: #161b26;
-      --accent: #6366f1;
-      --accent-glow: rgba(99, 102, 241, 0.3);
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --border: #262f40;
-      --user-msg: #4f46e5;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background-color: #0b0f19; color: #fff; display: flex; flex-direction: column; height: 100vh; }
+    header { background: #151c2c; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #232f48; }
+    header h1 { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #1e293b; color: #94a3b8; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
     
-    /* Header */
-    header { padding: 14px 16px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-    header h1 { font-size: 1.1rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
-    .status-badge { font-size: 0.75rem; background: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 4px 8px; border-radius: 12px; font-weight: 600; }
+    .settings-bar { background: #101726; padding: 10px 16px; display: flex; gap: 8px; border-bottom: 1px solid #1e293b; align-items: center; flex-wrap: wrap; }
+    select, input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; outline: none; }
+    select { cursor: pointer; }
+    input { flex: 1; min-width: 140px; }
+    .btn-save { background: #3b82f6; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    
+    .chat-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 85%; padding: 12px 14px; border-radius: 10px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; }
+    .msg.user { align-self: flex-end; background: #2563eb; color: #fff; }
+    .msg.ai { align-self: flex-start; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+    .msg.error { background: #451a1a; color: #f87171; border: 1px solid #7f1d1d; }
 
-    /* API Key Banner */
-    #api-banner { background: #1e1b4b; border-bottom: 1px solid #3730a3; padding: 10px 16px; display: flex; gap: 8px; font-size: 0.85rem; align-items: center; }
-    #api-banner input { flex: 1; background: #0f172a; border: 1px solid #312e81; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; }
-    #api-banner button { background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .quick-actions { display: flex; gap: 8px; padding: 8px 16px; overflow-x: auto; background: #0b0f19; }
+    .chip { background: #1e293b; border: 1px solid #334155; color: #cbd5e1; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; }
 
-    /* Chat Area */
-    #chat-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; }
-    .msg.user { align-self: flex-end; background: var(--user-msg); color: white; border-bottom-right-radius: 2px; }
-    .msg.ai { align-self: flex-start; background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
-    .plan-box { background: #0f172a; border: 1px dashed var(--accent); padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 0.8rem; font-family: monospace; white-space: pre-wrap; }
-
-    /* Presets Carousel */
-    .presets { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px; background: rgba(22, 27, 38, 0.8); scrollbar-width: none; }
-    .presets::-webkit-scrollbar { display: none; }
-    .chip { background: var(--card); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 12px; border-radius: 20px; font-size: 0.78rem; white-space: nowrap; cursor: pointer; }
-    .chip:active { background: var(--accent); color: white; }
-
-    /* Input Footer */
-    footer { padding: 10px 16px; background: var(--card); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-    .input-row { display: flex; gap: 8px; align-items: center; }
-    .attach-btn { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    #msg-input { flex: 1; background: #0b0e14; border: 1px solid var(--border); color: white; padding: 10px 14px; border-radius: 20px; font-size: 0.9rem; outline: none; }
-    #msg-input:focus { border-color: var(--accent); }
-    .send-btn { background: var(--accent); color: white; border: none; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; }
+    .input-bar { background: #151c2c; padding: 12px 16px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #232f48; }
+    .input-bar input { border-radius: 20px; padding: 10px 16px; }
+    .btn-send { background: #3b82f6; border: none; width: 40px; height: 40px; border-radius: 50%; color: white; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   </style>
 </head>
 <body>
 
   <header>
     <h1>🎬 Magic AI Editor</h1>
-    <span class="status-badge" id="app-status">Standalone</span>
+    <span class="badge">Standalone</span>
   </header>
 
-  <div id="api-banner">
-    <input type="password" id="gemini-key" placeholder="Enter Gemini API Key...">
-    <button onclick="saveKey()">Save</button>
+  <!-- Provider & API Key Setup -->
+  <div class="settings-bar">
+    <select id="modelProvider">
+      <option value="groq">Llama 3 (Free Groq)</option>
+      <option value="gemini">Gemini API</option>
+    </select>
+    <input type="password" id="apiKeyInput" placeholder="Enter API Key...">
+    <button class="btn-save" onclick="saveApiKey()">Save</button>
   </div>
 
-  <div id="chat-container">
-    <div class="msg ai">
-      नमस्ते! मैं <b>Magic AI Video Editor</b> हूँ। आप मुझे वीडियो आइडिया, रील कांसेप्ट्स या एडिटिंग स्टाइल्स बता सकते हैं। नीचे दिए गए प्रीसेट्स का इस्तेमाल करें या अपना प्रॉम्प्ट लिखें!
-    </div>
+  <!-- Chat History -->
+  <div class="chat-container" id="chatArea">
+    <div class="msg ai">नमस्ते! मैं <b>Magic AI Video Editor</b> हूँ। आप मुझे वीडियो आइडिया, रील कॉन्सेप्ट्स या एडिटिंग स्टाइल्स बता सकते हैं। नीचे दिए गए प्रीसेट्स का इस्तेमाल करें या अपना प्रॉम्प्ट लिखें!</div>
   </div>
 
-  <div class="presets">
+  <!-- Quick Prompts -->
+  <div class="quick-actions">
     <div class="chip" onclick="quickSend('Velocity Edit with Phonk sync')">⚡ Velocity Edit</div>
     <div class="chip" onclick="quickSend('Cinematic Color Grade plan')">🎨 Cinematic Grade</div>
-    <div class="chip" onclick="quickSend('Suggest Dark Phonk Music query')">🎵 Phonk Music</div>
-    <div class="chip" onclick="quickSend('Headlight Glow & Motion Blur')">✨ Car Glow Edit</div>
+    <div class="chip" onclick="quickSend('Viral Gaming Reel Hook idea')">🔥 Viral Reel Hook</div>
   </div>
 
-  <footer>
-    <div class="input-row">
-      <input type="file" id="video-file" accept="video/*" style="display:none" onchange="fileSelected(this)">
-      <button class="attach-btn" onclick="document.getElementById('video-file').click()">➕</button>
-      <input type="text" id="msg-input" placeholder="Type instructions or ideas..." onkeydown="if(event.key==='Enter') send()">
-      <button class="send-btn" onclick="send()">➤</button>
-    </div>
-  </footer>
+  <!-- User Input -->
+  <div class="input-bar">
+    <input type="text" id="userInput" placeholder="Type instructions or ideas..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button class="btn-send" onclick="sendMessage()">➤</button>
+  </div>
 
   <script>
-    let API_KEY = localStorage.getItem("GEMINI_KEY") || "";
-    if (API_KEY) document.getElementById("gemini-key").value = API_KEY;
+    // Load stored key
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedProvider = localStorage.getItem("selected_provider") || "groq";
+      document.getElementById("modelProvider").value = savedProvider;
+      loadKeyForProvider(savedProvider);
+    });
 
-    function saveKey() {
-      const k = document.getElementById("gemini-key").value.trim();
-      if (!k) return alert("Please enter a valid key!");
-      localStorage.setItem("GEMINI_KEY", k);
-      API_KEY = k;
-      alert("API Key Saved!");
+    document.getElementById("modelProvider").addEventListener("change", (e) => {
+      localStorage.setItem("selected_provider", e.target.value);
+      loadKeyForProvider(e.target.value);
+    });
+
+    function loadKeyForProvider(provider) {
+      const key = localStorage.getItem(`api_key_${provider}`) || "";
+      document.getElementById("apiKeyInput").value = key;
     }
 
-    function appendMessage(text, sender, isPlan = false) {
-      const box = document.getElementById("chat-container");
-      const div = document.createElement("div");
-      div.className = `msg ${sender}`;
-      if (isPlan) {
-        div.innerHTML = `<div>${text.summary || "AI Blueprint Ready"}</div><pre class="plan-box">${JSON.stringify(text, null, 2)}</pre>`;
-      } else {
-        div.innerText = text;
+    function saveApiKey() {
+      const provider = document.getElementById("modelProvider").value;
+      const key = document.getElementById("apiKeyInput").value.trim();
+      if (!key) {
+        alert("कृपया API Key दर्ज करें!");
+        return;
       }
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
+      localStorage.setItem(`api_key_${provider}`, key);
+      alert(`${provider.toUpperCase()} API Key सुरक्षित रूप से सेव हो गई!`);
     }
 
-    function quickSend(txt) {
-      document.getElementById("msg-input").value = txt;
-      send();
+    function addMessage(text, type) {
+      const chatArea = document.getElementById("chatArea");
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `msg ${type}`;
+      msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+      chatArea.appendChild(msgDiv);
+      chatArea.scrollTop = chatArea.scrollHeight;
     }
 
-    function fileSelected(input) {
-      if (input.files.length > 0) {
-        appendMessage(`Attached video: ${input.files[0].name}`, "user");
-        appendMessage(`Video received (${input.files[0].name}). Ab bataiye ispe kaisa edit karna hai? (e.g., Velocity, Reel, Cinematic)`, "ai");
-      }
+    function quickSend(text) {
+      document.getElementById("userInput").value = text;
+      sendMessage();
     }
 
-    async function send() {
-      const input = document.getElementById("msg-input");
-      const userText = input.value.trim();
-      if (!userText) return;
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const text = input.value.trim();
+      if (!text) return;
 
-      if (!API_KEY) {
-        alert("Please enter and save your Gemini API Key at the top first!");
+      addMessage(text, "user");
+      input.value = "";
+
+      const provider = document.getElementById("modelProvider").value;
+      const apiKey = localStorage.getItem(`api_key_${provider}`);
+
+      if (!apiKey) {
+        addMessage(`Error: कृपया पहले ऊपर ${provider.toUpperCase()} API Key डालकर Save करें।`, "error");
         return;
       }
 
-      appendMessage(userText, "user");
-      input.value = "";
-
-      const systemPrompt = `You are Magic AI, a world-class autonomous video editor assistant. 
-Reply concisely in simple Hinglish or English.
-For video edits, give concrete steps: speed ramps, cuts, SFX, and color grading. 
-Always output clean, actionable advice.`;
+      addMessage("सोच रहा हूँ...", "ai");
+      const loadingMsg = document.getElementById("chatArea").lastChild;
 
       try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: ${userText}` }] }]
-          })
-        });
-
-        const data = await res.json();
-        if (data.candidates && data.candidates[0].content) {
-          const reply = data.candidates[0].content.parts[0].text;
-          appendMessage(reply, "ai");
+        let reply = "";
+        if (provider === "groq") {
+          // Free Groq Llama 3 API (No billing/credit card needed)
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: "llama-3.1-8b-instant",
+              messages: [
+                { role: "system", content: "You are Magic AI Video Editor. Provide creative, short, impactful video editing ideas and prompts in Hindi/Hinglish." },
+                { role: "user", content: text }
+              ]
+            })
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error.message);
+          reply = data.choices[0].message.content;
         } else {
-          appendMessage("Error: AI reply could not be generated. Check your API key.", "ai");
+          // Gemini API Call
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: text }] }]
+            })
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error.message);
+          reply = data.candidates[0].content.parts[0].text;
         }
-      } catch (e) {
-        appendMessage("Network/API Error: " + e.message, "ai");
+
+        loadingMsg.innerHTML = reply.replace(/\n/g, '<br>');
+      } catch (err) {
+        loadingMsg.className = "msg error";
+        loadingMsg.innerText = "Error: AI reply could not be generated. Check your API key. (" + err.message + ")";
       }
     }
   </script>
