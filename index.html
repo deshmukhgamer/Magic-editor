@@ -1,174 +1,1680 @@
-<!DOCTYPE html>
-<html lang="hi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Magic AI Editor</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-    body { background-color: #0b0f19; color: #fff; display: flex; flex-direction: column; height: 100vh; }
-    header { background: #151c2c; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #232f48; }
-    header h1 { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-    .badge { background: #1e293b; color: #94a3b8; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
-    
-    .settings-bar { background: #101726; padding: 10px 16px; display: flex; gap: 8px; border-bottom: 1px solid #1e293b; align-items: center; flex-wrap: wrap; }
-    select, input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; outline: none; }
-    select { cursor: pointer; }
-    input { flex: 1; min-width: 140px; }
-    .btn-save { background: #3b82f6; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    
-    .chat-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .msg { max-width: 85%; padding: 12px 14px; border-radius: 10px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; }
-    .msg.user { align-self: flex-end; background: #2563eb; color: #fff; }
-    .msg.ai { align-self: flex-start; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
-    .msg.error { background: #451a1a; color: #f87171; border: 1px solid #7f1d1d; }
+cat > ~/app_chat.py << 'EOF'
+#!/usr/bin/env python3
+# ==========================================================================
+#  Magic AI Editor v3  -  autonomous AI video editor (Gemini + FFmpeg + yt-dlp), installable app (PWA)
+#  Created by Deshmukh Gamer
+#  Run in Termux:  python app_chat.py   ->  open http://127.0.0.1:5000
+#  One-time home-screen launcher:  python app_chat.py --install-shortcut
+# ==========================================================================
+import array, base64, importlib.util, ipaddress, json, math, mimetypes, os, re
+import shutil, socket, struct, subprocess, sys, threading, time, uuid, zlib
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
-    .quick-actions { display: flex; gap: 8px; padding: 8px 16px; overflow-x: auto; background: #0b0f19; }
-    .chip { background: #1e293b; border: 1px solid #334155; color: #cbd5e1; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; }
+import requests
+from flask import Flask, Response, abort, jsonify, request, send_file
 
-    .input-bar { background: #151c2c; padding: 12px 16px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #232f48; }
-    .input-bar input { border-radius: 20px; padding: 10px 16px; }
-    .btn-send { background: #3b82f6; border: none; width: 40px; height: 40px; border-radius: 50%; color: white; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  </style>
-</head>
-<body>
+# ----------------------------------------------------------------- settings
+GEMINI_MODEL = "gemini-2.0-flash"          # the model you asked for
+# Used ONLY if Google has switched the model above off (it returns "not found"):
+FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.6-flash"]
+API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
-  <header>
-    <h1>🎬 Magic AI Editor</h1>
-    <span class="badge">Standalone</span>
-  </header>
+BASE = Path.home() / "magic_editor"
+JOBS_DIR = BASE / "jobs"
+ASSETS_DIR = BASE / "assets"
+for _d in (JOBS_DIR, ASSETS_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
 
-  <!-- Provider & API Key Setup -->
-  <div class="settings-bar">
-    <select id="modelProvider">
-      <option value="groq">Llama 3 (Free Groq)</option>
-      <option value="gemini">Gemini API</option>
-    </select>
-    <input type="password" id="apiKeyInput" placeholder="Enter API Key...">
-    <button class="btn-save" onclick="saveApiKey()">Save</button>
-  </div>
+FONTS = ["/system/fonts/Roboto-Bold.ttf", "/system/fonts/Roboto-Regular.ttf",
+         "/system/fonts/DroidSans-Bold.ttf", "/system/fonts/DroidSans.ttf"]
+FONT = next((f for f in FONTS if os.path.exists(f)), None)
+UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"
+MAX_DL = 150 * 1024 * 1024
+PHONK_QUERY = "no copyright phonk music"
+SFX_QUERY = "whoosh impact sound effect no copyright"
+IMG_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+DIRECT_EXT = IMG_EXT | {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".flac",
+                        ".mp4", ".mov", ".webm", ".mkv", ".gif"}
 
-  <!-- Chat History -->
-  <div class="chat-container" id="chatArea">
-    <div class="msg ai">नमस्ते! मैं <b>Magic AI Video Editor</b> हूँ। आप मुझे वीडियो आइडिया, रील कॉन्सेप्ट्स या एडिटिंग स्टाइल्स बता सकते हैं। नीचे दिए गए प्रीसेट्स का इस्तेमाल करें या अपना प्रॉम्प्ट लिखें!</div>
-  </div>
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 ** 3
+JOBS, ASSETS, LOCK = {}, {}, threading.Lock()
+ACTIVE = {"model": GEMINI_MODEL}
 
-  <!-- Quick Prompts -->
-  <div class="quick-actions">
-    <div class="chip" onclick="quickSend('Velocity Edit with Phonk sync')">⚡ Velocity Edit</div>
-    <div class="chip" onclick="quickSend('Cinematic Color Grade plan')">🎨 Cinematic Grade</div>
-    <div class="chip" onclick="quickSend('Viral Gaming Reel Hook idea')">🔥 Viral Reel Hook</div>
-  </div>
+# color looks: S-curve + colorbalance (shadows / mids / highlights) + eq
+LOOKS = {
+    "neutral": {},
+    "moody": {"curves": "0/0 0.18/0.11 0.5/0.47 0.82/0.88 1/1",
+              "cb": "rs=0.03:bs=0.09:rm=-0.02:bm=0.05:rh=0.04:bh=-0.05", "c": 1.05, "s": 0.88, "gamma": 0.96},
+    "teal_orange": {"curves": "0/0 0.25/0.19 0.5/0.5 0.78/0.85 1/1",
+                    "cb": "rs=-0.10:bs=0.10:rh=0.14:gh=0.04:bh=-0.12", "c": 1.08, "s": 1.15},
+    "cold_night": {"curves": "0/0 0.2/0.13 0.5/0.48 0.85/0.9 1/1",
+                   "cb": "rs=-0.06:bs=0.14:rm=-0.04:bm=0.08:rh=-0.02:bh=0.06", "c": 1.1, "s": 0.95},
+    "warm_sunset": {"curves": "0/0 0.25/0.2 0.75/0.8 1/1",
+                    "cb": "rs=0.04:rm=0.07:bm=-0.05:rh=0.12:bh=-0.10", "c": 1.05, "s": 1.2},
+    "vivid": {"curves": "0/0 0.25/0.2 0.75/0.83 1/1", "c": 1.1, "s": 1.4},
+}
 
-  <!-- User Input -->
-  <div class="input-bar">
-    <input type="text" id="userInput" placeholder="Type instructions or ideas..." onkeydown="if(event.key==='Enter') sendMessage()">
-    <button class="btn-send" onclick="sendMessage()">➤</button>
-  </div>
 
-  <script>
-    // Load stored key
-    document.addEventListener("DOMContentLoaded", () => {
-      const savedProvider = localStorage.getItem("selected_provider") || "groq";
-      document.getElementById("modelProvider").value = savedProvider;
-      loadKeyForProvider(savedProvider);
-    });
+# ----------------------------------------------------------------- Gemini
+def _gone(status, msg):
+    m = (msg or "").lower()
+    keys = ("no longer available", "not found", "is not supported", "deprecated",
+            "shut down", "decommission", "retired")
+    return status == 404 or (status in (400, 403) and any(k in m for k in keys))
 
-    document.getElementById("modelProvider").addEventListener("change", (e) => {
-      localStorage.setItem("selected_provider", e.target.value);
-      loadKeyForProvider(e.target.value);
-    });
 
-    function loadKeyForProvider(provider) {
-      const key = localStorage.getItem(`api_key_${provider}`) || "";
-      document.getElementById("apiKeyInput").value = key;
-    }
+def gemini(key, system, contents, json_mode=True, max_tokens=8192):
+    body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents,
+            "generationConfig": {"maxOutputTokens": max_tokens}}
+    if json_mode:
+        body["generationConfig"]["responseMimeType"] = "application/json"
+    order = [ACTIVE["model"]] + [m for m in [GEMINI_MODEL] + FALLBACK_MODELS if m != ACTIVE["model"]]
+    last = "Gemini error"
+    for model in order:
+        r = None
+        for attempt in range(3):
+            r = requests.post(f"{API_URL}/{model}:generateContent", timeout=240, json=body,
+                              headers={"x-goog-api-key": key, "content-type": "application/json"})
+            if r.status_code in (429, 503) and attempt < 2:
+                time.sleep(4 * (attempt + 1))
+                continue
+            break
+        if r.status_code == 200:
+            try:
+                parts = r.json()["candidates"][0]["content"]["parts"]
+            except Exception:
+                raise RuntimeError("Gemini ne khaali ya blocked reply diya. Dobara try karo.")
+            ACTIVE["model"] = model
+            return "".join(p.get("text", "") for p in parts if not p.get("thought"))
+        try:
+            msg = r.json()["error"]["message"]
+        except Exception:
+            msg = r.text[:200]
+        last = f"Gemini error {r.status_code}: {msg}"
+        if not _gone(r.status_code, msg):
+            raise RuntimeError(last)
+    raise RuntimeError(last + " (saare models try kar liye)")
 
-    function saveApiKey() {
-      const provider = document.getElementById("modelProvider").value;
-      const key = document.getElementById("apiKeyInput").value.trim();
-      if (!key) {
-        alert("कृपया API Key दर्ज करें!");
-        return;
+
+CHAT_SYSTEM = (
+    'You are "Magic AI", the built-in assistant of the Magic Video Editor app made by Deshmukh Gamer. '
+    'You act as a Master Video Editor, Thumbnail Graphic Designer and YouTube Growth Expert. '
+    'You help with any kind of video: gaming, car reels, vlogs, shorts, tutorials, montages, anything.\n\n'
+    'Rules:\n'
+    '- Reply in the language the user writes. If the user writes Hindi or Hinglish, reply in clear, simple Hinglish.\n'
+    '- No generic advice. Give exact, actionable steps (for example: set opacity to 80%, use a whoosh sound effect here).\n'
+    '- For any video idea, script or thumbnail concept give: (1) Editing Workflow with step-by-step retention-focused '
+    'instructions (J-cuts, sound effects, motion blur, zoom-ins, beat-syncs), (2) Thumbnail Design (background extraction, '
+    'color grading layers, character placement, catchy text), (3) Titles and SEO (5 highly clickable viral titles plus the '
+    'best metadata tags), (4) Hooks (a strong 10-second opening script or visual hook). '
+    'For small casual questions answer briefly.\n'
+    '- If the user wants the app to edit a video automatically, tell them to tap the + button, attach the raw video, '
+    'type the editing instructions (or tap a preset button) and send.\n'
+    '- The app has preset buttons above the keyboard: Velocity Edit, Download Phonk Audio, Cinematic Grade, '
+    'Headlight Glow, Full Auto-Edit, Download SFX. Mention them when useful.\n'
+    '- The app can download assets. ONLY if the user asks to download or get music, a sound effect or an overlay, '
+    'add an item to "actions". If the user typed a URL, copy that exact URL into "url". Otherwise give a short YouTube '
+    'search "query" (add "no copyright" for music). kind is one of: music, sfx, overlay. Never invent URLs. '
+    'Remind the user to use only copyright-free audio or audio they have rights to.\n'
+    '- The app edits autonomously: when the user attaches a video it plans the edit, searches and downloads copyright-free music/SFX/overlays by itself with yt-dlp search (no links needed), detects beats, ramps speed on drops, grades, adds glow and renders.\n'
+    '- Keep it mobile friendly: short paragraphs, **bold** key words, bullet lists.\n\n'
+    'Output ONLY one JSON object, nothing else: '
+    '{"reply": "<markdown reply>", "suggestions": ["short follow-up 1", "short follow-up 2", "short follow-up 3"], '
+    '"actions": [{"type": "download", "kind": "music", "url": "", "query": ""}]}. '
+    "Use an empty actions list when no download is requested. "
+    "Suggestions are things the user might say next (max 6 words each), in the user's language."
+)
+
+
+# ----------------------------------------------------------------- helpers
+def log(job, msg, pct=None):
+    with LOCK:
+        job["log"].append(msg)
+        if pct is not None:
+            job["pct"] = pct
+
+
+def even(n):
+    return max(2, int(n) // 2 * 2)
+
+
+def clamp(v, lo, hi, d):
+    try:
+        return min(hi, max(lo, float(v)))
+    except Exception:
+        return d
+
+
+def media_info(path):
+    p = run(["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(path)])
+    info = json.loads(p.stdout)
+    st = info.get("streams", [])
+    v = next((s for s in st if s.get("codec_type") == "video"), None)
+    w = h = 0
+    if v:
+        w, h = int(v.get("width", 0)), int(v.get("height", 0))
+        for sd in v.get("side_data_list") or []:
+            if "rotation" in sd and abs(int(sd["rotation"])) % 180 == 90:
+                w, h = h, w
+    dur = float((info.get("format") or {}).get("duration") or (v or {}).get("duration") or 0)
+    return {"duration": dur, "w": w, "h": h, "video": bool(v),
+            "audio": any(s.get("codec_type") == "audio" for s in st)}
+
+
+def probe(path):
+    i = media_info(path)
+    if not i["video"]:
+        raise RuntimeError("Is file mein video stream nahi mili.")
+    return i
+
+
+def grab_frames(src, dur, wd):
+    n = min(12, max(4, int(dur // 20)))
+    out = []
+    for i in range(n):
+        ts, f = dur * (i + 0.5) / n, wd / f"f{i}.jpg"
+        try:
+            run(["ffmpeg", "-y", "-ss", f"{ts:.2f}", "-i", str(src), "-frames:v", "1",
+                 "-vf", "scale=480:-2", "-q:v", "6", str(f)])
+            out.append((ts, base64.b64encode(f.read_bytes()).decode()))
+        except Exception:
+            pass
+    return out
+
+
+def silences(src):
+    try:
+        p = run(["ffmpeg", "-i", str(src), "-vn", "-af", "silencedetect=noise=-35dB:d=1.5", "-f", "null", "-"])
+        s = re.findall(r"silence_start: ([\d.]+)", p.stderr)
+        e = re.findall(r"silence_end: ([\d.]+)", p.stderr)
+        return [(round(float(a), 1), round(float(b), 1)) for a, b in zip(s, e)][:40]
+    except Exception:
+        return []
+
+
+# ----------------------------------------------------------------- asset downloader
+def public_url(u):
+    try:
+        p = urlparse(u)
+        if p.scheme not in ("http", "https") or not p.hostname:
+            return False
+        for info in socket.getaddrinfo(p.hostname, None):
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def is_direct(url):
+    path = urlparse(url).path
+    if Path(path).suffix.lower() in DIRECT_EXT:
+        return True
+    host = (urlparse(url).hostname or "").lower()
+    if any(h in host for h in ("youtube.com", "youtu.be", "soundcloud.com", "instagram.com", "tiktok.com",
+                               "facebook.com", "twitter.com", "x.com", "vimeo.com")):
+        return False
+    try:
+        r = requests.head(url, timeout=10, allow_redirects=False, headers={"User-Agent": UA})
+        return r.headers.get("Content-Type", "").split(";")[0].startswith(("audio/", "video/", "image/"))
+    except Exception:
+        return False
+
+
+def fetch_direct(url, aid):
+    cur, r = url, None
+    for _ in range(5):
+        if not public_url(cur):
+            raise RuntimeError("Ye link allowed nahi hai (sirf public http/https links).")
+        r = requests.get(cur, stream=True, timeout=30, allow_redirects=False, headers={"User-Agent": UA})
+        if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("Location"):
+            cur = urljoin(cur, r.headers["Location"])
+            r.close()
+            continue
+        break
+    else:
+        raise RuntimeError("Link mein bahut zyada redirects hain.")
+    r.raise_for_status()
+    ext = Path(urlparse(cur).path).suffix.lower()
+    if ext not in DIRECT_EXT:
+        ext = mimetypes.guess_extension(r.headers.get("Content-Type", "").split(";")[0]) or ".bin"
+    path = ASSETS_DIR / f"{aid}{ext}"
+    size = 0
+    with open(path, "wb") as fh:
+        for chunk in r.iter_content(1024 * 256):
+            size += len(chunk)
+            if size > MAX_DL:
+                fh.close()
+                path.unlink(missing_ok=True)
+                raise RuntimeError("File 150 MB se badi hai.")
+            fh.write(chunk)
+    return path, Path(urlparse(cur).path).stem[:60] or "download"
+
+
+def load_assets():
+    for j in ASSETS_DIR.glob("*.json"):
+        try:
+            m = json.loads(j.read_text())
+            if (ASSETS_DIR / m["file"]).exists():
+                ASSETS[m["id"]] = m
+        except Exception:
+            pass
+
+
+def asset_path(aid):
+    m = ASSETS.get(re.sub(r"\W", "", str(aid or "")))
+    return (ASSETS_DIR / m["file"]) if m else None
+
+
+def dl_worker(jid, kind, url, query):
+    job = JOBS[jid]
+    try:
+        a = download_asset(kind, url, query, lambda m, p=None: log(job, m, p))
+        job.update(state="done", pct=100, asset=a)
+        log(job, "Download ho gaya!", 100)
+    except Exception as e:
+        job.update(state="error", error=str(e))
+        log(job, "ERROR: " + str(e))
+
+
+def start_download(kind, url="", query=""):
+    jid = uuid.uuid4().hex[:10]
+    JOBS[jid] = {"type": "download", "state": "running", "pct": 3, "log": ["Download shuru..."],
+                 "error": None, "asset": None, "kind": kind}
+    threading.Thread(target=dl_worker, args=(jid, kind, url, query), daemon=True).start()
+    return jid
+
+
+# ----------------------------------------------------------------- beat detection (pure Python)
+# ----------------------------------------------------------------- blueprint (Gemini)
+EDIT_SYSTEM = ("You are an elite video editor for YouTube, Shorts and Reels (car edits, velocity edits, "
+               "gaming montages, vlogs). You get sparse sample frames, silence info and the creator's style "
+               "brief. Reply with ONLY one valid JSON object. No markdown, no commentary.")
+
+SCHEMA = ('{"title": "...", "style": "velocity|cinematic|reel", "beat_grid": 2, "framing": "crop|pad",\n'
+          ' "assets": {"music": {"query": "dark phonk drift no copyright"}, '
+          '"sfx": [{"query": "whoosh transition sound effect no copyright", "use": "whoosh"}, '
+          '{"query": "bass drop impact sound effect no copyright", "use": "impact"}], "overlay": null},\n'
+          ' "grade": {"look": "neutral|moody|teal_orange|cold_night|warm_sunset|vivid", "contrast": 1.1, '
+          '"saturation": 1.1, "brightness": 0.0, "vignette": true, "glow": 0.5},\n'
+          ' "segments": [{"start": 0.0, "end": 6.5, "speed": 1.0, "ramp": [[0, 1.5], [0.4, 0.35], [0.7, 0.35], [1, 2.0]], '
+          '"zoom": 1.0, "effect": "none|flash|shake", "blur": 0, "focus": 0.5, "text": "", "reason": "..."}]}')
+
+
+def apply_preset(preset, segs, grade):
+    if preset in ("velocity", "full"):
+        if not any(s["ramp"] for s in segs):
+            longest = sorted(segs, key=lambda s: s["b"] - s["a"], reverse=True)[:max(1, (len(segs) + 1) // 2)]
+            for s in longest:
+                s["ramp"] = [[0, 1.6], [0.35, 0.35], [0.65, 0.35], [1, 2.2]]
+                s["blur"] = max(s["blur"], 1)
+    if preset in ("cinematic", "glow"):
+        for s in segs:
+            s["ramp"], s["speed"] = [], 1.0
+    if preset in ("cinematic", "glow", "full"):
+        if grade["look"] == "neutral":
+            grade["look"] = "moody"
+        grade["glow"] = max(grade["glow"], 0.55 if preset == "glow" else 0.4)
+        grade["vignette"] = True
+
+
+# ----------------------------------------------------------------- timing / beat sync
+def ramp_speeds(ramp, n=16):
+    pts = sorted([(clamp(u, 0, 1, 0), clamp(s, 0.2, 3.5, 1)) for u, s in ramp])
+    if pts[0][0] > 0:
+        pts.insert(0, (0.0, pts[0][1]))
+    if pts[-1][0] < 1:
+        pts.append((1.0, pts[-1][1]))
+    out = []
+    for k in range(n):
+        u = (k + 0.5) / n
+        v = pts[-1][1]
+        for (u0, s0), (u1, s1) in zip(pts, pts[1:]):
+            if u0 <= u <= u1:
+                v = s0 if u1 == u0 else s0 + (s1 - s0) * (u - u0) / (u1 - u0)
+                break
+        out.append(max(0.2, v))
+    return out
+
+
+def seg_k(s):
+    if s["ramp"]:
+        sp = ramp_speeds(s["ramp"])
+        return sum(1.0 / x for x in sp) / len(sp)
+    return 1.0 / s["speed"]
+
+
+def plan_timing(segs, dur, rel):
+    out, t, prev_end = [], 0.0, 0.0
+    for s in segs:
+        k = seg_k(s)
+        a = max(s["a"], prev_end)
+        if rel:
+            want = (s["b"] - s["a"]) * k
+            cands = [x for x in rel if x >= t + 0.45 and a + (x - t) / k <= dur]
+            if not cands:
+                continue
+            bt = min(cands, key=lambda x: abs(x - (t + want)))
+            o = bt - t
+            b = a + o / k
+        else:
+            b = s["b"]
+            if b - a < 0.5:
+                continue
+            o = (b - a) * k
+        s2 = dict(s)
+        s2.update(a=a, b=b, K=k, out=o, T=t)
+        out.append(s2)
+        t += o
+        prev_end = b
+    return out, t
+
+
+# ----------------------------------------------------------------- FFmpeg render
+def retime_expr(seg):
+    if not seg["ramp"]:
+        sp = seg["speed"]
+        return "setpts=(PTS-STARTPTS)/%.4f" % sp if abs(sp - 1) > 1e-3 else "setpts=PTS-STARTPTS"
+    n, d = 16, seg["b"] - seg["a"]
+    sl = ramp_speeds(seg["ramp"], n)
+    cum = [0.0]
+    for k in range(n):
+        cum.append(cum[-1] + (d / n) / sl[k])
+    u = "((PTS-STARTPTS)*TB)"
+    e = f"{cum[n - 1]:.5f}+({u}-{d * (n - 1) / n:.5f})/{sl[n - 1]:.5f}"
+    for k in range(n - 2, -1, -1):
+        e = f"if(lt({u},{d * (k + 1) / n:.5f}),{cum[k]:.5f}+({u}-{d * k / n:.5f})/{sl[k]:.5f},{e})"
+    return f"setpts='({e})/TB'"
+
+
+def grade_filters(g):
+    look = LOOKS.get(g["look"], {})
+    f = []
+    if look.get("curves"):
+        f.append(f"curves=all='{look['curves']}'")
+    if look.get("cb"):
+        f.append("colorbalance=" + look["cb"])
+    c = g["contrast"] * look.get("c", 1.0)
+    s = g["saturation"] * look.get("s", 1.0)
+    eq = f"eq=contrast={c:.2f}:saturation={s:.2f}:brightness={g['brightness']:.3f}"
+    if look.get("gamma"):
+        eq += f":gamma={look['gamma']}"
+    f.append(eq)
+    if g["vignette"]:
+        f.append("vignette=PI/5")
+    return f
+
+
+def atempo_chain(r):
+    r = max(0.25, min(4.0, r))
+    f = []
+    while r > 2.0:
+        f.append("atempo=2.0")
+        r /= 2.0
+    while r < 0.5:
+        f.append("atempo=0.5")
+        r /= 0.5
+    f.append(f"atempo={r:.4f}")
+    return ",".join(f)
+
+
+FMT_DESC = {"original": "original size", "auto": "vertical 9:16 reel (smart framing)",
+            "crop": "vertical 9:16 reel (smart crop on the subject)",
+            "pad": "vertical 9:16 reel (full frame with blurred bars)"}
+DUR = {"music": (40, 480), "sfx": (0, 30), "overlay": (0, 90)}
+
+
+def norm_format(a):
+    a = str(a or "").lower()
+    if a in ("auto", "crop", "pad", "original"):
+        return a
+    return "original" if a.startswith("orig") else "auto"
+
+
+def fetch_assets(job, say, ids, plan, auto, preset):
+    # picks the creator's own assets first, then lets the AI plan search + download the rest
+    music = asset_path(ids.get("music"))
+    mmeta = ASSETS.get(ids.get("music") or "") if music else None
+    sfx_list, ov = [], None
+    sp = asset_path(ids.get("sfx"))
+    if sp:
+        sfx_list.append({"use": "impact", "path": sp, "name": ASSETS[ids["sfx"]]["name"]})
+    op = asset_path(ids.get("overlay"))
+    if op:
+        m = ASSETS[ids["overlay"]]
+        ov = {"path": op, "image": bool(m.get("image")), "dur": float(m.get("dur") or 0), "name": m["name"]}
+    if not auto:
+        return music, mmeta, sfx_list, ov
+    car = preset in ("velocity", "full")
+
+    def grab(kind, query, pct):
+        m = cached_asset(kind, query)
+        if m:
+            say(f"Pehle se saved mila: {m['name']}", pct)
+        else:
+            say(f"AI search ({kind}): '{query}'", pct)
+            m = download_asset(kind, "", query, lambda msg, p=None: None)
+        job.setdefault("assets_new", []).append({"kind": kind, "id": m["id"], "name": m["name"]})
+        return m
+
+    if not music:
+        q = plan["music"] or (PHONK_QUERY if car else "")
+        if q:
+            try:
+                mmeta = grab("music", q, 32)
+                music = ASSETS_DIR / mmeta["file"]
+                say("Music: " + mmeta["name"])
+            except Exception as e:
+                say("[!] Music nahi mila, bina music ke aage badh raha hoon (" + str(e)[:110] + ")")
+    if not sfx_list:
+        items = plan["sfx"] or ([{"query": SFX_QUERY, "use": "whoosh"}] if car else [])
+        for it in items[:2]:
+            try:
+                m = grab("sfx", it["query"], 38)
+                sfx_list.append({"use": it["use"], "path": ASSETS_DIR / m["file"], "name": m["name"]})
+            except Exception as e:
+                say("[!] SFX skip kiya (" + str(e)[:100] + ")")
+    if not ov and plan["overlay"]:
+        try:
+            m = grab("overlay", plan["overlay"], 42)
+            ov = {"path": ASSETS_DIR / m["file"], "image": bool(m.get("image")),
+                  "dur": float(m.get("dur") or 0), "name": m["name"]}
+        except Exception as e:
+            say("[!] Overlay skip kiya (" + str(e)[:100] + ")")
+    return music, mmeta, sfx_list, ov
+
+
+def align_ramp(seg, acc, dur):
+    # re-shape the velocity curve so the slow-motion zone starts exactly on the music accent/drop
+    f1, slow, f2 = 1.7, 0.35, 2.2
+    out = seg["out"]
+    for _ in range(6):
+        d = seg["b"] - seg["a"]
+        u1 = min(0.65, max(0.12, acc * f1 / d))
+        u2 = min(0.9, u1 + 0.28)
+        ramp = [[0, f1], [u1, f1], [min(u1 + 0.05, 0.95), slow], [u2, slow], [min(u2 + 0.1, 0.99), f2], [1, f2]]
+        k = seg_k({"ramp": ramp, "speed": 1.0})
+        nd = out / k
+        if seg["a"] + nd > dur:
+            break
+        seg.update(ramp=ramp, K=k, b=seg["a"] + nd)
+
+
+def fix_overlap(segs, dur):
+    for i in range(1, len(segs)):
+        p, s = segs[i - 1], segs[i]
+        if s["a"] < p["b"]:
+            length = s["b"] - s["a"]
+            s["a"] = p["b"]
+            s["b"] = s["a"] + length
+            if s["b"] > dur:
+                s["b"] = dur
+                s["a"] = max(0.0, dur - length)
+
+
+def schedule_sfx(segs, sfx_list, drops, vd):
+    if not sfx_list:
+        return []
+
+    def pick(uses):
+        return next((x for x in sfx_list if x["use"] in uses), sfx_list[0])
+
+    wh, im = pick(("whoosh", "riser", "rev")), pick(("impact", "bassdrop"))
+    ev = []
+    for s in segs:
+        t0 = s["T"]
+        if t0 > 0.25 and (s["ramp"] or s["effect"] == "flash"):
+            ev.append((wh["path"], max(0.0, t0 - 0.12), 0.8))
+        if t0 > 0.25 and s["effect"] in ("flash", "shake"):
+            ev.append((im["path"], t0, 0.9))
+        if s["ramp"] and s.get("acc") is not None:
+            ev.append((im["path"], t0 + s["acc"], 1.0))
+    for d in drops or []:
+        if d < vd - 0.5:
+            ev.append((im["path"], d, 1.0))
+    ev.sort(key=lambda e: e[1])
+    out, last = [], -9.0
+    for e in ev:
+        if e[1] - last >= 0.45:
+            out.append(e)
+            last = e[1]
+    return out[:10]
+
+
+def run(cmd, timeout=600):
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"{Path(str(cmd[0])).name} time-out ho gaya (bahut der lag gayi).")
+    except FileNotFoundError:
+        raise RuntimeError(f"'{cmd[0]}' nahi mila. Termux mein chalao: pkg install -y ffmpeg")
+    if p.returncode != 0:
+        raise RuntimeError("FFmpeg failed: " + (p.stderr or "")[-500:])
+    return p
+
+
+def register_asset(aid, kind, name, path, dur, image, query=""):
+    meta = {"id": aid, "kind": kind, "name": re.sub(r"\s+", " ", name)[:80], "file": path.name,
+            "dur": round(dur, 1), "image": image, "query": query}
+    ASSETS[aid] = meta
+    (ASSETS_DIR / f"{aid}.json").write_text(json.dumps(meta))
+    return meta
+
+
+def cached_asset(kind, query):
+    for m in ASSETS.values():
+        if m["kind"] == kind and m.get("query") == query and (ASSETS_DIR / m["file"]).exists():
+            return m
+    return None
+
+
+def ytdlp(target, aid, kind, search=False):
+    if importlib.util.find_spec("yt_dlp") is None:
+        raise RuntimeError("yt-dlp install nahi hai. Termux mein chalao: pip install -U 'yt-dlp[default]'")
+    lo, hi = DUR.get(kind, (0, 480))
+    opts = ["--no-playlist", "--no-warnings", "--quiet", "--no-simulate", "--max-filesize", "150M",
+            "--socket-timeout", "30", "--retries", "3", "--print", "%(title).80s",
+            "-o", str(ASSETS_DIR / f"{aid}.%(ext)s")]
+    if search:
+        flt = (f"duration>={lo} & " if lo else "") + f"duration<={hi} & !is_live"
+        opts += ["--match-filters", flt, "--max-downloads", "1"]
+    if kind in ("music", "sfx"):
+        opts += ["-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "0"]
+    else:
+        opts += ["-f", "bv*[height<=720]+ba/b[height<=720]/b", "--merge-output-format", "mp4"]
+    js = ["--js-runtimes", "node"] if shutil.which("node") else []
+    if js and importlib.util.find_spec("yt_dlp_ejs") is None:
+        js += ["--remote-components", "ejs:github"]
+    p = None
+    try:
+        for flags in (js, []):
+            p = subprocess.run([sys.executable, "-m", "yt_dlp"] + flags + opts + [target],
+                               capture_output=True, text=True, timeout=900)
+            if flags and "no such option" in (p.stderr or "").lower():
+                continue
+            break
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Download time-out ho gaya (internet slow hai?).")
+    except OSError as e:
+        raise RuntimeError("yt-dlp chal nahi paya: " + str(e)[:120])
+    files = [f for f in ASSETS_DIR.glob(f"{aid}.*") if f.suffix != ".json"]
+    if p.returncode not in (0, 101) or not files:
+        err = (p.stderr or "").strip().splitlines()
+        raise RuntimeError("Download nahi hua: " + (err[-1][:240] if err else "koi result nahi mila (size/duration limit?)"))
+    lines = [x.strip() for x in (p.stdout or "").splitlines() if x.strip()]
+    return max(files, key=lambda f: f.stat().st_size), (lines[-1] if lines else "download")
+
+
+def download_asset(kind, url, query, say):
+    aid = uuid.uuid4().hex[:8]
+    if url:
+        if not public_url(url):
+            raise RuntimeError("Ye link allowed nahi hai (sirf public http/https links).")
+        if is_direct(url):
+            say("Direct link se file utaar raha hoon...", 20)
+            path, name = fetch_direct(url, aid)
+        else:
+            say("yt-dlp se download kar raha hoon...", 20)
+            path, name = ytdlp(url, aid, kind)
+    elif query:
+        say("YouTube par search + download (yt-dlp)...", 20)
+        n = "8" if kind == "sfx" else "5"
+        path, name = ytdlp(f"ytsearch{n}:" + query, aid, kind, True)
+    else:
+        raise RuntimeError("Link ya search query chahiye.")
+    say("File check kar raha hoon...", 85)
+    image = path.suffix.lower() in IMG_EXT
+    try:
+        info = media_info(path)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise RuntimeError("Ye file audio/video/image jaisi nahi lag rahi.")
+    if kind in ("music", "sfx") and not info["audio"]:
+        path.unlink(missing_ok=True)
+        raise RuntimeError("Is file mein audio nahi hai.")
+    if kind == "overlay" and not (info["video"] or image):
+        path.unlink(missing_ok=True)
+        raise RuntimeError("Overlay ke liye video ya image chahiye.")
+    return register_asset(aid, kind, name, path, info["duration"], image, query)
+
+
+def analyze_beats(path, max_sec=150):
+    # pure-Python beat tracker: bass-filtered onset envelope -> tempo -> beat grid,
+    # plus per-beat strength and "drops" (sudden loudness jumps).
+    try:
+        p = subprocess.run(["ffmpeg", "-v", "error", "-t", str(max_sec), "-i", str(path), "-vn", "-ac", "1",
+                            "-ar", "8000", "-af", "lowpass=f=180", "-f", "s16le", "-"],
+                           capture_output=True, timeout=180)
+        raw = p.stdout
+        if len(raw) < 8000 * 2 * 4:
+            return None
+        smp = array.array("h")
+        smp.frombytes(raw[:len(raw) // 2 * 2])
+        if sys.byteorder == "big":
+            smp.byteswap()
+        hop, sr = 128, 8000
+        n = len(smp) // hop
+        env = [math.sqrt(sum(x * x for x in smp[i * hop:(i + 1) * hop]) / hop) for i in range(n)]
+        flux = [0.0] + [max(0.0, env[i] - env[i - 1]) for i in range(1, n)]
+        flux = [(flux[max(i - 1, 0)] + 2 * flux[i] + flux[min(i + 1, n - 1)]) / 4 for i in range(n)]
+        if max(flux) <= 0:
+            return None
+        h = hop / sr
+        lo, hi = int(0.30 / h), int(1.0 / h)
+        best, bl = -1.0, lo
+        for L in range(lo, hi + 1):
+            ac = sum(flux[i] * flux[i + L] for i in range(n - L)) / (n - L)
+            bpm = 60.0 / (L * h)
+            score = ac * math.exp(-((bpm - 125.0) / 50.0) ** 2 / 2)
+            if score > best:
+                best, bl = score, L
+        dil = [max(flux[max(i - 1, 0):i + 2]) for i in range(n)]
+        bs, bp_, bo = -1.0, float(bl), 0.0
+        for P in [bl - 1.0 + 0.05 * k for k in range(41)]:
+            if P < 4:
+                continue
+            for o in range(int(P) + 1):
+                tot, k = 0.0, 0
+                while True:
+                    idx = int(round(o + k * P))
+                    if idx >= n:
+                        break
+                    tot += dil[idx]
+                    k += 1
+                if tot / max(k, 1) > bs:
+                    bs, bp_, bo = tot / max(k, 1), P, float(o)
+        beats, k = [], 0
+        while (bo + k * bp_) * h < n * h:
+            beats.append(round((bo + k * bp_) * h, 4))
+            k += 1
+        if len(beats) < 8:
+            return None
+        mx = max(env) or 1.0
+        strength = []
+        for t in beats:
+            i = int(t / h)
+            strength.append(round(max(env[max(i - 1, 0):i + 4] or [0.0]) / mx, 3))
+        cs = [0.0]
+        for v in env:
+            cs.append(cs[-1] + v)
+
+        def avg(a, b):
+            a, b = max(a, 0), min(b, n)
+            return (cs[b] - cs[a]) / max(b - a, 1)
+
+        w1, eps = int(1.0 / h), 0.02 * mx
+        cand = sorted(((avg(i, i + w1) + eps) / (avg(i - w1, i) + eps), i) for i in range(w1, n - w1, 4))
+        drops = []
+        for ratio, i in reversed(cand):
+            if ratio < 1.8 or len(drops) >= 6:
+                break
+            t = i * h
+            if all(abs(t - d) > 4 for d in drops):
+                drops.append(round(t, 3))
+        for j, t in enumerate(beats):
+            if any(abs(t - d) < 0.25 for d in drops):
+                strength[j] = round(min(1.5, strength[j] + 0.5), 3)
+        return {"bpm": round(60.0 / (bp_ * h), 1), "beats": beats, "strength": strength, "drops": sorted(drops)}
+    except Exception:
+        return None
+
+
+def make_blueprint(key, info, frames, sil, instructions, ctx):
+    parts = []
+    for ts, b64 in frames:
+        parts.append({"text": f"Frame at {ts:.1f}s:"})
+        parts.append({"inlineData": {"mimeType": "image/jpeg", "data": b64}})
+    parts.append({"text": blueprint_prompt(info, sil, instructions, ctx)})
+    text = gemini(key, EDIT_SYSTEM, [{"role": "user", "parts": parts}])
+    m = re.search(r"\{.*\}", text, re.S)
+    if not m:
+        raise RuntimeError("Gemini ne JSON nahi diya. Dobara try karo.")
+    try:
+        return json.loads(m.group(0))
+    except Exception:
+        raise RuntimeError("Gemini ka plan padh nahi paya (JSON kharab). Dobara try karo.")
+
+
+def blueprint_prompt(info, sil, instructions, ctx):
+    d = info["duration"]
+    have = ", ".join(ctx["have"]) or "nothing"
+    return (
+        f"Raw video: {d:.1f}s, {info['w']}x{info['h']}.\n"
+        "Frames above are sparse samples, so when unsure keep continuous action.\n"
+        f"Silent stretches (start,end secs): {sil or 'none'}\n"
+        f"Output format: {FMT_DESC[ctx['fmt']]}\n"
+        f"Assets the creator already provided: {have}\n"
+        f"Auto asset download: {'ON' if ctx['auto'] else 'OFF'}\n"
+        f"Preset requested: {ctx['preset'] or 'none'}\n"
+        f"CREATOR BRIEF: {instructions}\n\n"
+        "Return JSON exactly like:\n" + SCHEMA + "\n\n"
+        "Rules:\n"
+        f"- segments chronological, non-overlapping, inside 0..{d:.1f}s, usually 1.5-8s each.\n"
+        "- Cut dead/silent/boring parts, keep the best moments. Cuts snap to the music beat automatically.\n"
+        "- speed 0.25-3.0 for the whole segment. ramp is OPTIONAL: a velocity curve as [position 0-1 inside the "
+        "segment, speed 0.2-3.5] points, e.g. fast -> slow -> fast. Use [] for constant speed. "
+        "Use ramps on the key moments (passing car, jump, kill, drift, drop).\n"
+        "- zoom 1.0-1.4 punch-ins. effect: flash = white flash at segment start, shake = camera shake on impact.\n"
+        "- blur 0 none, 1 light, 2 strong motion blur (use 1-2 on ramps and fast moves).\n"
+        "- beat_grid: cuts snap to every Nth beat (1 = very fast, 2 = normal, 4 = calm).\n"
+        "- grade.look: moody / cold_night for night and dark car edits, teal_orange for cinematic, warm_sunset, "
+        "vivid, neutral. grade.glow 0-1 = bloom on bright lights (headlights, neon, explosions), 0 for flat daylight.\n"
+        "- assets: decide from the footage vibe what the edit needs. music.query = genre/mood YouTube search "
+        "(e.g. dark phonk drift, epic cinematic trap, chill lofi) ending with 'no copyright'. sfx = 0-2 items, "
+        "use is one of whoosh|impact|bassdrop|rev|riser, query ends with 'no copyright'. overlay = null unless a "
+        "light leak / film grain / glitch overlay clearly improves the look. Set an asset to null if the creator "
+        "already provided that kind, or if Auto asset download is OFF.\n"
+        "- framing (landscape footage turned vertical): crop = zoom into the subject, pad = keep the full frame "
+        "with blurred bars. focus 0-1 per segment = horizontal position of the main subject (0 left, 0.5 centre, 1 right).\n"
+        "- text: max 3 words, ALL CAPS, Latin letters only, no emojis, on only 0-4 segments.\n"
+        "- contrast 0.9-1.3, saturation 0.7-1.6, brightness -0.05..0.05."
+    )
+
+
+def clean(bp, dur):
+    def q(x):
+        t = (x.get("query") if isinstance(x, dict) else "") or ""
+        t = re.sub(r"[^\w\s'+-]", " ", str(t)).strip()[:90]
+        low = t.lower()
+        return (t if ("copyright" in low or "royalty" in low) else t + " no copyright") if t else ""
+
+    segs, last = [], 0.0
+    for s in bp.get("segments", []):
+        try:
+            a, b = max(float(s["start"]), last), min(float(s["end"]), dur)
+        except Exception:
+            continue
+        if b - a < 0.6:
+            continue
+        ramp = []
+        for pt in (s.get("ramp") or [])[:8]:
+            try:
+                ramp.append([clamp(pt[0], 0, 1, 0), clamp(pt[1], 0.2, 3.5, 1.0)])
+            except Exception:
+                pass
+        if len(ramp) < 2:
+            ramp = []
+        eff = s.get("effect") if s.get("effect") in ("flash", "shake") else "none"
+        segs.append({"a": a, "b": b, "speed": clamp(s.get("speed"), 0.25, 3.0, 1.0), "ramp": ramp,
+                     "zoom": clamp(s.get("zoom"), 1.0, 1.5, 1.0), "effect": eff,
+                     "blur": int(clamp(s.get("blur"), 0, 2, 0)), "focus": clamp(s.get("focus"), 0, 1, 0.5),
+                     "text": re.sub(r"[^A-Za-z0-9 !?.'-]", "", str(s.get("text") or ""))[:30],
+                     "why": str(s.get("reason") or "")[:140]})
+        last = b
+    if not segs:
+        raise RuntimeError("Gemini ne koi use-able cut nahi diya. Instructions badal ke try karo.")
+    g = bp.get("grade") or {}
+    grade = {"look": g.get("look") if g.get("look") in LOOKS else "neutral",
+             "contrast": clamp(g.get("contrast"), 0.8, 1.4, 1.05),
+             "saturation": clamp(g.get("saturation"), 0.6, 1.8, 1.1),
+             "brightness": clamp(g.get("brightness"), -0.1, 0.1, 0.0),
+             "vignette": bool(g.get("vignette")), "glow": clamp(g.get("glow"), 0, 1, 0.0)}
+    a = bp.get("assets") if isinstance(bp.get("assets"), dict) else {}
+    plan = {"music": q(a.get("music")), "sfx": [], "overlay": q(a.get("overlay")),
+            "framing": "pad" if bp.get("framing") == "pad" else "crop"}
+    for it in (a.get("sfx") or [])[:2]:
+        use = str(it.get("use", "impact")).lower() if isinstance(it, dict) else "impact"
+        qq = q(it)
+        if qq:
+            plan["sfx"].append({"query": qq, "use": use if use in ("whoosh", "impact", "bassdrop", "rev", "riser") else "impact"})
+    grid = int(clamp(bp.get("beat_grid"), 1, 4, 2))
+    return segs, grade, (4 if grid == 3 else grid), str(bp.get("title") or "")[:80], plan
+
+
+def render_segment(src, out, seg, size, grade, has_audio, can_text, idx, wd, hq, ov, mode, safe=False):
+    W, H = size
+    z, d, o = seg["zoom"], seg["b"] - seg["a"], seg["out"]
+    shakes = [] if safe else (seg.get("shakes") or [])
+    k = max(z, 1.0) * (1.08 if shakes else 1.0)
+    Wk, Hk = even(W * k), even(H * k)
+    fc = []
+    if mode == "pad":
+        fc.append("[0:v]split=2[p0][p1]")
+        fc.append(f"[p0]scale=iw/8:ih/8,gblur=sigma=6,scale={Wk}:{Hk}:force_original_aspect_ratio=increase,"
+                  f"crop={Wk}:{Hk}[pbg]")
+        fc.append(f"[p1]scale={Wk}:{Hk}:force_original_aspect_ratio=decrease[pfg]")
+        fc.append("[pbg][pfg]overlay=(W-w)/2:(H-h)/2[s0]")
+    else:
+        fx = clamp(seg.get("focus"), 0, 1, 0.5)
+        fc.append(f"[0:v]scale={Wk}:{Hk}:force_original_aspect_ratio=increase,"
+                  f"crop={Wk}:{Hk}:x='(iw-ow)*{fx:.3f}':y='(ih-oh)/2'[s0]")
+    vf = [retime_expr(seg)]
+    if safe or seg["blur"] == 0:
+        vf.append("fps=30")
+    elif seg["blur"] >= 2 and hq and o <= 8:
+        vf.append("minterpolate=fps=60:mi_mode=mci:mc_mode=aobmc:vsbmc=1,tblend=all_mode=average,fps=30")
+    elif seg["blur"] >= 2:
+        vf.append("fps=30,tmix=frames=3:weights='1 2 1'")
+    else:
+        vf.append("fps=30,tblend=all_mode=average")
+    if shakes:
+        shk = "min(1.5," + "+".join(f"gte(t,{h:.3f})*exp(-max(t-{h:.3f},0)*8)" for h in shakes) + ")"
+        vf.append(f"crop={W}:{H}:x='(iw-ow)/2+sin(t*80)*16*{shk}':y='(ih-oh)/2+cos(t*67)*16*{shk}'")
+    elif (Wk, Hk) != (W, H):
+        vf.append(f"crop={W}:{H}")
+    if safe:
+        vf.append(f"eq=contrast={grade['contrast']:.2f}:saturation={grade['saturation']:.2f}")
+    else:
+        vf += grade_filters(grade)
+    if seg["effect"] == "flash":
+        vf.append("fade=t=in:st=0:d=0.25:color=white")
+    if seg["text"] and can_text and not safe:
+        tf = wd / f"t{idx}.txt"
+        tf.write_text(seg["text"], encoding="utf-8")
+        vf.append(f"drawtext=fontfile={FONT}:textfile={tf}:fontsize=h/13:fontcolor=white:"
+                  f"borderw=5:bordercolor=black:x=(w-text_w)/2:y=h*0.12:enable='between(t,0,2)'")
+    vf.append("format=yuv420p")
+    fc.append(f"[s0]{','.join(vf)}[b0]")
+    last = "b0"
+
+    cmd = ["ffmpeg", "-y", "-ss", f"{seg['a']:.3f}", "-t", f"{d:.3f}", "-i", str(src)]
+    nxt, aidx = 1, 0
+    if not has_audio:
+        cmd += ["-f", "lavfi", "-t", f"{o:.3f}", "-i", "anullsrc=r=44100:cl=stereo"]
+        aidx, nxt = 1, 2
+    if grade["glow"] > 0.05 and not safe:
+        op = 0.25 + 0.6 * grade["glow"]
+        fc.append(f"[{last}]split[ga][gb]")
+        fc.append(f"[gb]scale=iw/4:ih/4:flags=bilinear,format=gbrp,curves=all='0/0 0.55/0 0.75/0.45 1/1',"
+                  f"gblur=sigma=5,scale={W}:{H}:flags=bilinear,format=yuv420p[gl]")
+        fc.append(f"[ga][gl]blend=all_mode=screen:all_opacity={op:.2f},format=yuv420p[b1]")
+        last = "b1"
+    if ov and not safe:
+        if ov["image"]:
+            cmd += ["-loop", "1", "-t", f"{o:.3f}", "-i", str(ov["path"])]
+            fc.append(f"[{nxt}:v]scale={W}:{H},format=rgba[ovx]")
+            fc.append(f"[{last}][ovx]overlay=0:0:format=auto,format=yuv420p[b2]")
+        else:
+            off = seg["T"] % ov["dur"] if ov["dur"] > 1 else 0
+            cmd += ["-stream_loop", "-1", "-ss", f"{off:.3f}", "-t", f"{o:.3f}", "-i", str(ov["path"])]
+            fc.append(f"[{nxt}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                      f"fps=30,format=yuv420p[ovx]")
+            fc.append(f"[{last}][ovx]blend=all_mode=screen:all_opacity=0.55,format=yuv420p[b2]")
+        last = "b2"
+    ratio = d / o if o > 0 else 1.0
+    fc.append(f"[{aidx}:a]{atempo_chain(ratio)},aresample=44100,apad,atrim=0:{o:.3f},asetpts=PTS-STARTPTS[aout]")
+    cmd += ["-filter_complex", ";".join(fc), "-map", f"[{last}]", "-map", "[aout]",
+            "-c:v", "libx264", "-preset", "fast" if hq else "veryfast", "-crf", "20" if hq else "23",
+            "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "160k", "-ac", "2",
+            "-t", f"{o:.3f}", str(out)]
+    run(cmd, timeout=1800)
+
+
+def final_mix(joined, music, music_ss, events, vd, out):
+    cmd = ["ffmpeg", "-y", "-i", str(joined)]
+    fc = [f"[0:a]volume={0.16 if music else 1.0}[o]"]
+    labels, n = ["[o]"], 1
+    if music:
+        cmd += ["-ss", f"{music_ss:.3f}", "-i", str(music)]
+        fc.append(
+            f"[{n}:a]aformat=sample_rates=44100:channel_layouts=stereo,apad,atrim=0:{vd:.3f},asetpts=PTS-STARTPTS,"
+            "highpass=f=28,equalizer=f=55:t=o:w=1.6:g=7,equalizer=f=110:t=o:w=1.5:g=3,"
+            "equalizer=f=3500:t=o:w=2:g=1.5,acompressor=threshold=0.14:ratio=3:attack=5:release=60:makeup=1.6,"
+            f"afade=t=in:st=0:d=0.08,afade=t=out:st={max(vd - 0.7, 0):.3f}:d=0.7[m]")
+        labels.append("[m]")
+        n += 1
+    for path, t, vol in events:
+        cmd += ["-t", "2", "-i", str(path)]
+        ms = max(0, int(t * 1000))
+        fc.append(f"[{n}:a]aformat=sample_rates=44100:channel_layouts=stereo,atrim=0:1.6,asetpts=PTS-STARTPTS,"
+                  f"adelay={ms}:all=1,volume={vol:.2f}[s{n}]")
+        labels.append(f"[s{n}]")
+        n += 1
+    fc.append("".join(labels) + f"amix=inputs={len(labels)}:normalize=0:duration=first:dropout_transition=0,"
+              "alimiter=limit=0.95[aout]")
+    cmd += ["-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[aout]", "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-t", f"{vd:.3f}", str(out)]
+    run(cmd, timeout=900)
+
+
+def worker(jid, key, instr, aspect, hq, preset, ids, src, auto_assets):
+    job, wd = JOBS[jid], JOBS_DIR / jid
+
+    def say(m, p=None):
+        log(job, m, p)
+
+    try:
+        say("Video ki info padh raha hoon...", 4)
+        info = probe(src)
+        if info["duration"] < 1:
+            raise RuntimeError("Video bahut chhota hai ya padha nahi ja raha.")
+        fmt = norm_format(aspect)
+        landscape = info["w"] > info["h"] * 1.1
+        if fmt == "original":
+            sc = min(1.0, (1920 if hq else 1280) / max(info["w"], info["h"]))
+            size, mode = (even(info["w"] * sc), even(info["h"] * sc)), "crop"
+        else:
+            size = (1080, 1920) if hq else (720, 1280)
+            mode = "crop" if (not landscape or fmt == "crop") else ("pad" if fmt == "pad" else None)
+
+        say("Preview frames bana raha hoon...", 10)
+        frames = grab_frames(src, info["duration"], wd)
+        sil = silences(src) if info["audio"] else []
+        ctx = {"preset": preset, "fmt": fmt, "auto": auto_assets,
+               "have": [k for k in ("music", "overlay", "sfx") if asset_path(ids.get(k))]}
+        say("Gemini video dekh kar edit + assets ka plan bana raha hai...", 18)
+        bp = make_blueprint(key, info, frames, sil, instr, ctx)
+        segs, grade, grid, title, plan = clean(bp, info["duration"])
+        apply_preset(preset, segs, grade)
+        if mode is None:
+            mode = plan["framing"]
+        say(f"Plan ready: {len(segs)} cuts | grade: {grade['look']} | framing: {mode}", 30)
+
+        music, mmeta, sfx_list, ov = fetch_assets(job, say, ids, plan, auto_assets, preset)
+
+        beats, rel, acc, drops, music_ss = None, None, None, None, 0.0
+        if music:
+            say("Music ke beats + drops analyze kar raha hoon...", 46)
+            beats = analyze_beats(music)
+            say(f"Beat mila: ~{beats['bpm']} BPM, {len(beats['drops'])} drop(s)" if beats
+                else "Beats nahi mile, normal timing use hogi.")
+        if beats:
+            idxs = list(range(0, len(beats["beats"]), grid))
+            if len(idxs) >= 3:
+                music_ss = beats["beats"][idxs[0]]
+                rel = [beats["beats"][i] - music_ss for i in idxs]
+                acc = [(b - music_ss, st) for b, st in zip(beats["beats"], beats["strength"]) if b >= music_ss]
+                drops = [x - music_ss for x in beats["drops"] if x >= music_ss]
+
+        segs, vd = plan_timing(segs, info["duration"], rel)
+        if not segs:
+            raise RuntimeError("Timing set nahi ho payi. Dobara try karo.")
+        for s in segs:
+            s["acc"], s["shakes"] = None, []
+            if acc:
+                cand = [(st, t - s["T"]) for t, st in acc if s["T"] + 0.25 * s["out"] <= t <= s["T"] + 0.8 * s["out"]]
+                if cand:
+                    s["acc"] = max(cand)[1]
+            if s["ramp"] and s["acc"] is not None:
+                align_ramp(s, s["acc"], info["duration"])
+            if s["effect"] == "shake":
+                s["shakes"].append(0.0)
+            if (s["ramp"] or s["effect"] == "shake") and s["acc"] is not None:
+                s["shakes"].append(s["acc"])
+        fix_overlap(segs, info["duration"])
+        events = schedule_sfx(segs, sfx_list, drops, vd)
+
+        job["title"] = title
+        job["blueprint"] = [{"t": f"{s['a']:.1f}-{s['b']:.1f}s", "out": round(s["out"], 2),
+                             "speed": "ramp" if s["ramp"] else f"{s['speed']}x", "zoom": s["zoom"],
+                             "fx": s["effect"], "blur": s["blur"], "text": s["text"], "why": s["why"]}
+                            for s in segs]
+        job["info"] = {"bpm": beats["bpm"] if beats else None, "look": grade["look"], "glow": round(grade["glow"], 2),
+                       "music": mmeta["name"] if (music and mmeta) else None, "beat_sync": bool(rel),
+                       "sfx": [x["name"] for x in sfx_list], "overlay": ov["name"] if ov else None,
+                       "framing": mode, "events": len(events)}
+        say(f"Render shuru: {len(segs)} clips, ~{vd:.0f}s ka video...", 50)
+
+        can_text = bool(FONT) and "drawtext" in run(["ffmpeg", "-filters"]).stdout
+        parts = []
+        for i, s in enumerate(segs):
+            out = wd / f"seg{i}.mp4"
+            try:
+                render_segment(src, out, s, size, grade, info["audio"], can_text, i, wd, hq, ov, mode)
+            except Exception as e:
+                say(f"Clip {i + 1}: advanced effects fail hue, safe mode mein dobara... ({str(e)[:80]})")
+                render_segment(src, out, s, size, grade, info["audio"], can_text, i, wd, hq, ov, mode, True)
+            parts.append(out)
+            say(f"Clip {i + 1}/{len(segs)} render ho gaya", 50 + int(36 * (i + 1) / len(segs)))
+
+        say("Clips jod raha hoon...", 88)
+        lst = wd / "list.txt"
+        lst.write_text("".join(f"file '{p}'\n" for p in parts))
+        joined = wd / "joined.mp4"
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(joined)])
+        final = wd / "final.mp4"
+        if music or events:
+            say("Bass-heavy audio mix + SFX lagaa raha hoon...", 92)
+            try:
+                final_mix(joined, music, music_ss, events, vd, final)
+            except Exception as e:
+                say("Audio mix fail hua, original audio ke saath save kar raha hoon... (" + str(e)[:80] + ")")
+                run(["ffmpeg", "-y", "-i", str(joined), "-c", "copy", "-movflags", "+faststart", str(final)])
+        else:
+            run(["ffmpeg", "-y", "-i", str(joined), "-c", "copy", "-movflags", "+faststart", str(final)])
+        for p in parts + [joined]:
+            p.unlink(missing_ok=True)
+        job.update(state="done", pct=100, video=f"/video/{jid}", model=ACTIVE["model"])
+        say("Ho gaya! Video ready hai.", 100)
+    except Exception as e:
+        job.update(state="error", error=str(e))
+        log(job, "ERROR: " + str(e))
+
+
+@app.post("/api/edit")
+def api_edit():
+    key = request.form.get("key", "").strip()
+    if not key:
+        return jsonify(error="API key missing hai."), 400
+    f = request.files.get("video")
+    old_src = None
+    if not (f and f.filename):
+        old = JOBS_DIR / re.sub(r"\W", "", request.form.get("reuse", ""))
+        old_src = next(old.glob("input.*"), None) if old.is_dir() else None
+        if not old_src:
+            return jsonify(error="Video nahi mili. + dabake video attach karo."), 400
+    jid = uuid.uuid4().hex[:10]
+    wd = JOBS_DIR / jid
+    wd.mkdir(parents=True)
+    if old_src:
+        src = old_src
+    else:
+        src = wd / ("input" + (Path(f.filename).suffix.lower() or ".mp4"))
+        f.save(src)
+    ids = {k: re.sub(r"\W", "", request.form.get(k, "")) for k in ("music", "overlay", "sfx")}
+    ids = {k: (v if v in ASSETS else "") for k, v in ids.items()}
+    preset = request.form.get("preset", "")
+    preset = preset if preset in ("velocity", "cinematic", "glow", "full") else ""
+    JOBS[jid] = {"type": "edit", "state": "running", "pct": 2, "log": ["Video mil gayi."], "error": None,
+                 "video": None, "blueprint": [], "title": "", "info": {}, "assets_new": []}
+    threading.Thread(target=worker, daemon=True, args=(
+        jid, key, request.form.get("instructions", "").strip() or "Auto edit: fast-paced, high-energy reel.",
+        request.form.get("aspect", "auto"), request.form.get("quality") == "high", preset, ids, src,
+        request.form.get("auto_assets", "1") == "1")).start()
+    return jsonify(job_id=jid)
+
+
+# ----------------------------------------------------------------- installable app (PWA)
+ICONS = {}
+SW_JS = "\n".join([
+    "const OFFLINE = `<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+    "<body style='margin:0;background:#131314;color:#e3e3e3;font:16px system-ui;padding:28px'>"
+    "<h2 style='color:#9b72cb'>Magic AI Editor</h2><p>Server chalu nahi hai.</p>"
+    "<p>Termux mein ye chalao:<br><code>cd ~ &amp;&amp; python app_chat.py</code></p>"
+    "<p>Ya home screen ke <b>Magic-Editor</b> widget ko dabao, phir is app ko dobara kholo.</p>`;",
+    "self.addEventListener('install', () => self.skipWaiting());",
+    "self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));",
+    "self.addEventListener('fetch', e => {",
+    "  if (e.request.mode === 'navigate') {",
+    "    e.respondWith(fetch(e.request).catch(() => new Response(OFFLINE, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })));",
+    "  }",
+    "});",
+])
+
+
+def _png(w, h, raw):
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+def make_icon(size, maskable=False):
+    # blue -> violet -> rose gradient with a white 4-point sparkle (same look as the app header)
+    key = (size, maskable)
+    if key in ICONS:
+        return ICONS[key]
+    star = 0.40 if maskable else 0.52
+    corner = 0.0 if maskable else 0.22
+    rows = []
+    for y in range(size):
+        row = bytearray([0])
+        v = (y + 0.5) / size * 2 - 1
+        for x in range(size):
+            u = (x + 0.5) / size * 2 - 1
+            t = (u + v + 2) / 4
+            if t < 0.5:
+                k, c0, c1 = t / 0.5, (66, 133, 244), (155, 114, 203)
+            else:
+                k, c0, c1 = (t - 0.5) / 0.5, (155, 114, 203), (217, 101, 112)
+            base = [c0[i] + (c1[i] - c0[i]) * k for i in range(3)]
+            f = (abs(u) ** 0.55 + abs(v) ** 0.55) ** (1 / 0.55)
+            a = min(1.0, max(0.0, (star - f) * size / 3 + 0.5))
+            alpha = 255
+            if corner:
+                qx, qy = abs(u) - (1 - corner), abs(v) - (1 - corner)
+                d = math.hypot(max(qx, 0.0), max(qy, 0.0)) - corner
+                alpha = int(min(1.0, max(0.0, 0.5 - d * size / 2)) * 255)
+            row += bytes((int(base[0] + (255 - base[0]) * a), int(base[1] + (255 - base[1]) * a),
+                          int(base[2] + (255 - base[2]) * a), alpha))
+        rows.append(bytes(row))
+    ICONS[key] = _png(size, size, b"".join(rows))
+    return ICONS[key]
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    icons = [{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+             {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+             {"src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]
+    return Response(json.dumps({
+        "name": "Magic AI Editor", "short_name": "Magic Editor", "id": "/",
+        "description": "Autonomous AI video editor by Deshmukh Gamer",
+        "start_url": "/", "scope": "/", "display": "standalone", "orientation": "portrait",
+        "background_color": "#131314", "theme_color": "#131314", "icons": icons}),
+        mimetype="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    r = Response(SW_JS, mimetype="application/javascript")
+    r.headers["Cache-Control"] = "no-cache"
+    return r
+
+
+@app.get("/icon-<name>.png")
+def icon(name):
+    spec = {"192": (192, False), "512": (512, False), "maskable-512": (512, True)}.get(name)
+    if not spec:
+        abort(404)
+    r = Response(make_icon(*spec), mimetype="image/png")
+    r.headers["Cache-Control"] = "public, max-age=86400"
+    return r
+
+
+def install_shortcut():
+    # makes a one-tap launcher for the Termux:Widget app (starts the server, then opens the app)
+    home = Path.home()
+    me = Path(__file__).resolve()
+    start = ("#!/data/data/com.termux/files/usr/bin/bash\n"
+             "termux-wake-lock\n"
+             f"curl -s -m 2 http://127.0.0.1:5000/api/info > /dev/null || (nohup python {me} > {BASE}/server.log 2>&1 &)\n")
+    sc = home / ".shortcuts"
+    sc.mkdir(exist_ok=True)
+    p = sc / "Magic-Editor"
+    p.write_text(start + "sleep 4\ntermux-open-url http://127.0.0.1:5000\n")
+    p.chmod(0o755)
+    boot = home / ".termux" / "boot"
+    boot.mkdir(parents=True, exist_ok=True)
+    b = boot / "magic-editor"
+    b.write_text(start)
+    b.chmod(0o755)
+    print("\n  Launcher ban gaya: " + str(p))
+    print("  1) Termux:Widget app install karo (Termux jahan se liya wahin se, jaise F-Droid).")
+    print("  2) Home screen par lamba dabao -> Widgets -> Termux:Widget -> 'Magic-Editor' chuno.")
+    print("  3) Us icon ko dabate hi server chalu hoga aur app khulega.\n")
+
+
+# ----------------------------------------------------------------- routes
+@app.get("/")
+def index():
+    return Response(HTML, mimetype="text/html")
+
+
+@app.get("/api/info")
+def api_info():
+    return jsonify(model=ACTIVE["model"], ytdlp=importlib.util.find_spec("yt_dlp") is not None,
+                   node=bool(shutil.which("node")))
+
+
+def plan_downloads(user_msg, actions):
+    urls = [u.rstrip(".,)") for u in re.findall(r"https?://[^\s<>\"']+", user_msg)]
+    out = []
+    for a in actions or []:
+        if not isinstance(a, dict) or a.get("type") != "download":
+            continue
+        kind = a.get("kind") if a.get("kind") in ("music", "sfx", "overlay") else "music"
+        url = str(a.get("url") or "").strip().rstrip(".,)")
+        query = str(a.get("query") or "").strip()[:120]
+        if url and url not in urls:
+            url = ""
+        if url:
+            out.append({"kind": kind, "url": url, "query": ""})
+        elif query:
+            out.append({"kind": kind, "url": "", "query": query})
+    if not out and urls and re.search(r"download|music|audio|song|sfx|sound|overlay|phonk|track|mp3|gaana", user_msg, re.I):
+        low = user_msg.lower()
+        kind = ("sfx" if re.search(r"sfx|sound effect|whoosh|impact", low)
+                else "overlay" if re.search(r"overlay|leak|glitch|grain|bokeh|texture", low) else "music")
+        out.append({"kind": kind, "url": urls[0], "query": ""})
+    return out[:3]
+
+
+@app.post("/api/chat")
+def api_chat():
+    d = request.get_json(force=True, silent=True) or {}
+    key = (d.get("key") or "").strip()
+    if not key:
+        return jsonify(error="API key missing hai."), 400
+    msg = str(d.get("message") or "")[:6000]
+    contents = []
+    for h in (d.get("history") or [])[-20:]:
+        t = str(h.get("text") or "")[:6000]
+        if t:
+            contents.append({"role": "user" if h.get("role") == "user" else "model", "parts": [{"text": t}]})
+    contents.append({"role": "user", "parts": [{"text": msg}]})
+    try:
+        text = gemini(key, CHAT_SYSTEM, contents)
+    except Exception as e:
+        return jsonify(error=str(e)), 502
+    reply, sug, actions = text, [], []
+    m = re.search(r"\{.*\}", text, re.S)
+    if m:
+        try:
+            j = json.loads(m.group(0))
+            reply = str(j.get("reply") or text)
+            sug = [str(s)[:60] for s in (j.get("suggestions") or [])][:3]
+            actions = j.get("actions") or []
+        except Exception:
+            pass
+    downloads = []
+    for a in plan_downloads(msg, actions):
+        downloads.append({"job_id": start_download(a["kind"], a["url"], a["query"]), "kind": a["kind"],
+                          "label": a["url"] or a["query"]})
+    return jsonify(reply=reply, suggestions=sug, downloads=downloads, model=ACTIVE["model"])
+
+
+@app.post("/api/download")
+def api_download():
+    d = request.get_json(force=True, silent=True) or {}
+    kind = d.get("kind") if d.get("kind") in ("music", "sfx", "overlay") else "music"
+    url, query = str(d.get("url") or "").strip(), str(d.get("query") or "").strip()[:120]
+    if not url and not query:
+        query = SFX_QUERY if kind == "sfx" else PHONK_QUERY
+    if url and not public_url(url):
+        return jsonify(error="Ye link allowed nahi hai (sirf public http/https links)."), 400
+    return jsonify(job_id=start_download(kind, url, "" if url else query), kind=kind)
+
+
+@app.get("/api/status/<jid>")
+def api_status(jid):
+    j = JOBS.get(jid)
+    return jsonify(j) if j else abort(404)
+
+
+@app.get("/video/<jid>")
+def video(jid):
+    p = JOBS_DIR / re.sub(r"\W", "", jid) / "final.mp4"
+    if not p.exists():
+        abort(404)
+    return send_file(p, mimetype="video/mp4", conditional=True, as_attachment=bool(request.args.get("dl")),
+                     download_name=f"edited_by_deshmukh_gamer_{jid}.mp4")
+
+
+@app.get("/asset/<aid>")
+def asset(aid):
+    p = asset_path(aid)
+    if not p or not p.exists():
+        abort(404)
+    return send_file(p, conditional=True)
+
+
+HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#131314">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Magic AI Editor - Deshmukh Gamer</title>
+<style>
+:root{--bg:#131314;--panel:#1e1f20;--panel2:#2a2c2e;--line:#37393d;--txt:#e3e3e3;--mut:#9aa0a6;--blue:#4285f4;--vio:#9b72cb;--rose:#d96570}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:760px;margin:auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 14px 8px}
+.brand{display:flex;gap:10px;align-items:center}.brand b{display:block;font-size:17px;line-height:1.15}.brand small{color:var(--mut);font-size:12px}
+.spark{font-size:26px;background:linear-gradient(135deg,var(--blue),var(--vio),var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hb button{width:42px;height:42px;border-radius:50%;border:0;background:var(--panel);color:var(--txt);font-size:18px;margin-left:6px}
+#chat{flex:1;overflow-y:auto;padding:6px 14px 14px;overscroll-behavior:contain}
+#hello{padding:24px 2px 6px}
+#hello h1{font-size:30px;line-height:1.2;margin:0;background:linear-gradient(74deg,var(--blue),var(--vio) 45%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+#hello p{font-size:25px;font-weight:600;color:#5b5f66;margin:2px 0 20px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cardx{background:var(--panel);border:0;border-radius:18px;padding:14px;min-height:96px;text-align:left;color:var(--txt);font:inherit;font-size:14px;line-height:1.35}
+.cardx span{display:block;font-size:22px;margin-bottom:8px}
+.m{display:flex;gap:10px;margin:16px 0}.m.u{justify-content:flex-end}
+.m.u .b{background:var(--panel2);padding:10px 15px;border-radius:20px 20px 6px 20px;max-width:86%;white-space:pre-wrap;overflow-wrap:anywhere}
+.tag{display:inline-block;background:#0f2a1f;color:#7dffc4;font-size:12px;padding:3px 9px;border-radius:99px;margin-bottom:6px}
+.m.a .av{flex:none;width:28px;font-size:20px;line-height:1.5;background:linear-gradient(135deg,var(--blue),var(--vio),var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.m.a .b{flex:1;min-width:0;overflow-wrap:anywhere}
+.b p{margin:0 0 10px}.b h4{margin:14px 0 6px;font-size:16px;color:#fff}.b ul,.b ol{margin:0 0 10px;padding-left:22px}.b li{margin:3px 0}
+.b code{background:#2a2c2e;padding:1px 6px;border-radius:6px;font-size:14px}
+.b pre{background:#0d0d0e;border:1px solid var(--line);padding:10px;border-radius:12px;overflow-x:auto;font-size:13px;white-space:pre-wrap}
+.dots{display:flex;gap:5px;padding:10px 0}.dots i{width:8px;height:8px;border-radius:50%;background:var(--vio);animation:d 1.2s infinite}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}@keyframes d{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.sug{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 8px 38px}
+.sug button{background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:99px;padding:8px 14px;font:inherit;font-size:14px}
+.job .jt{font-size:14px;color:var(--mut);margin-bottom:8px}
+.bar{height:8px;background:var(--panel2);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;width:2%;background:linear-gradient(90deg,var(--blue),var(--vio),var(--rose));transition:width .5s}
+video.res{width:100%;border-radius:16px;background:#000;max-height:62vh;margin:8px 0}
+audio{width:100%;margin:6px 0}img.ovp,video.ovp{max-width:100%;max-height:160px;border-radius:12px}
+.dl{display:block;text-align:center;text-decoration:none;color:#fff;background:linear-gradient(135deg,var(--blue),var(--vio));padding:13px;border-radius:14px;font-weight:700}
+.kv{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.kv span{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;color:var(--mut)}
+.small{font-size:12px;color:var(--mut)}
+details{margin-top:10px;font-size:13px;color:var(--mut)}details div{border-top:1px solid var(--line);padding:6px 0}
+#comp{padding:4px 12px calc(8px + env(safe-area-inset-bottom))}
+#presets{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}#presets::-webkit-scrollbar{display:none}
+#presets button{flex:none;border:1px solid var(--line);background:var(--panel);color:var(--txt);border-radius:99px;padding:8px 13px;font:inherit;font-size:13px;white-space:nowrap}
+#presets button:active{background:var(--panel2)}
+#att{display:flex;flex-wrap:wrap;gap:6px;margin:0 4px 8px}
+.chip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:7px 10px;font-size:13px;max-width:100%}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chip button{border:0;background:var(--panel2);color:var(--txt);width:24px;height:24px;border-radius:50%}
+.box{background:var(--panel);border-radius:28px;padding:10px 12px 8px;border:1px solid transparent}
+.box:focus-within{border-color:#4285f477}
+textarea{width:100%;background:transparent;border:0;color:var(--txt);font:inherit;resize:none;outline:none;max-height:140px;padding:4px 6px}
+textarea::placeholder{color:#7d838b}
+.brow{display:flex;align-items:center;gap:8px;margin-top:4px}.sp{flex:1}
+.ib{width:42px;height:42px;border-radius:50%;border:0;background:var(--panel2);color:var(--txt);font-size:24px;line-height:1}
+#send{background:linear-gradient(135deg,var(--blue),var(--vio));color:#fff;font-size:19px}#send:disabled{opacity:.35}
+.fine{text-align:center;color:#6b7078;font-size:11px;margin-top:6px}
+#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:flex-end;justify-content:center;z-index:9}
+#modal .sheet{background:var(--panel);width:100%;max-width:760px;border-radius:24px 24px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92dvh;overflow-y:auto}
+.sheet h3{margin:0 0 12px}.sheet label.l{display:block;font-size:12px;color:var(--mut);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+.sheet input[type=password],.sheet select{width:100%;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:14px;padding:13px;font:inherit;outline:none}.sheet .chk{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--txt);margin-top:14px}.sheet .chk input{width:20px;height:20px;margin-top:2px;flex:none}
+.sheet .r{display:flex;gap:8px}.sheet .r button{flex:none;width:48px;border:1px solid var(--line);background:var(--bg);color:var(--txt);border-radius:14px;font-size:18px}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+.seg input{position:absolute;opacity:0;pointer-events:none}.seg label{flex:1;margin:0;text-align:center;padding:10px 4px;border-radius:10px;font-size:13px;color:var(--mut)}
+.seg input:checked+label{background:linear-gradient(135deg,var(--blue),var(--vio));color:#fff;font-weight:700}
+.save{width:100%;margin-top:18px;padding:14px;border:0;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--vio));color:#fff;font:700 16px system-ui}
+.note{font-size:12px;color:var(--mut);margin-top:10px}.warnx{color:#ffcf7a;font-size:13px;margin-bottom:6px}
+.hide{display:none!important}.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+</style></head><body>
+<div id="app">
+<header><div class="brand"><span class="spark">&#10022;</span><div><b>Magic AI Editor</b><small>by Deshmukh Gamer</small></div></div>
+<div class="hb"><button id="newc" title="New chat">&#9998;</button><button id="setb" title="API key & settings">&#9881;</button></div></header>
+
+<main id="chat"><div id="hello">
+<h1>Namaste, Deshmukh Gamer</h1><p>Aaj kya banate hain?</p>
+<div class="cards">
+<button class="cardx" data-pick="1"><span>&#127916;</span>Video edit karwao (+ se video attach karo)</button>
+<button class="cardx" data-p="velocity"><span>&#9889;</span>Velocity edit: speed ramp + motion blur</button>
+<button class="cardx" data-p="phonk"><span>&#127925;</span>Phonk audio download karo</button>
+<button class="cardx" data-p="full"><span>&#128640;</span>Auto edit: AI khud music + SFX dhoondega</button>
+</div></div></main>
+
+<footer id="comp">
+<div id="presets">
+<button data-p="velocity">&#9889; Velocity Edit</button>
+<button data-p="phonk">&#127925; Download Phonk Audio</button>
+<button data-p="cinematic">&#127916; Cinematic Grade</button>
+<button data-p="glow">&#128161; Headlight Glow</button>
+<button data-p="full">&#128640; Full Auto-Edit</button>
+<button data-p="sfx">&#128266; Download SFX</button>
+</div>
+<div id="att" class="hide"></div>
+<div class="box"><textarea id="inp" rows="1" placeholder="Magic AI se poochho, link bhejo ya video edit karwao..."></textarea>
+<div class="brow"><button class="ib" id="plus" title="Video attach karo">&#65291;</button>
+<input class="vh" id="file" type="file" accept="video/*"><span class="sp"></span>
+<button class="ib" id="send" title="Send">&#10148;</button></div></div>
+<div class="fine"><span id="mdl">AI: gemini-2.0-flash</span> &bull; Copyright-free audio hi use karo &bull; Created by Deshmukh Gamer</div>
+</footer></div>
+
+<div id="modal" class="hide"><div class="sheet">
+<h3>&#128273; API key &amp; settings</h3>
+<div id="mwarn" class="warnx hide"></div>
+<label class="l">Gemini API Key</label>
+<div class="r"><input id="skey" type="password" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false"><button id="eye" type="button">&#128065;</button></div>
+<label class="l">Video output format</label>
+<select id="sfmt"><option value="auto">Auto 9:16 (AI smart framing)</option><option value="crop">9:16 Smart Crop</option><option value="pad">9:16 Blur-Pad (full frame)</option><option value="original">Original size</option></select>
+<label class="chk"><input type="checkbox" id="sauto" checked> AI khud music / SFX / overlay dhoondhe aur download kare (yt-dlp search, link ki zaroorat nahi)</label>
+<label class="l">Render quality</label>
+<div class="seg"><input type="radio" name="qua" id="q1" value="fast" checked><label for="q1">Fast</label>
+<input type="radio" name="qua" id="q2" value="high"><label for="q2">Cinematic HQ (1080p, slow)</label></div>
+<div class="note">Key sirf is phone ke browser mein save hoti hai aur sirf Google Gemini ko bheji jaati hai. Key banao: aistudio.google.com/apikey</div>
+<div class="note" id="tools"></div>
+<button class="save hide" id="inst" type="button" style="background:var(--panel2)">&#128242; Is app ko phone mein install karo</button>
+<div class="note" id="instnote">Install: Chrome menu &#8942; &rarr; "Install app" ya "Add to Home screen".</div>
+<button class="save" id="ssave">Save</button>
+</div></div>
+
+<script>
+const $ = i => document.getElementById(i);
+const ls = { g: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+             s: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+const S = { key: ls.g('mk') || '', aspect: ls.g('mf') || 'auto', quality: ls.g('mq') || 'fast', auto: ls.g('mauto') !== '0' };
+let hist = [], att = null, busy = false, pending = null;
+const act = { music: null, overlay: null, sfx: null };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const PRESETS = {
+  velocity: { p: 'velocity', text: 'Velocity edit: aggressive speed ramps (fast, slow, fast) on the key moments, whip zoom punch-ins, flash on impacts, strong motion blur on ramps, fast beat-synced cuts.' },
+  cinematic: { p: 'cinematic', text: 'Cinematic grade: moody contrast, teal-orange color balance, vignette, subtle glow on bright lights. Keep original speed, few clean cuts.' },
+  glow: { p: 'glow', text: 'Headlight glow edit: bloom on headlights and bright lights, moody night grade, vignette. Keep original speed, smooth cuts.' },
+  full: { p: 'full', text: 'Full auto-edit: car/reel style. Velocity speed ramps, motion blur, moody cinematic grade with headlight glow, flash/shake on impacts, beat-synced cuts to bass-heavy music.' }
+};
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function md(s) {
+  s = esc(s);
+  const code = [];
+  s = s.replace(/```[a-z]*\n?([\s\S]*?)```/g, (m, c) => { code.push(c.trim()); return '\u0000' + (code.length - 1) + '\u0000'; });
+  const inl = t => t.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  let out = '', list = null;
+  const close = () => { if (list) { out += '</' + list + '>'; list = null; } };
+  for (const ln of s.split('\n')) {
+    let m;
+    if ((m = ln.match(/^\s*[-*\u2022]\s+(.*)/))) { if (list !== 'ul') { close(); out += '<ul>'; list = 'ul'; } out += '<li>' + inl(m[1]) + '</li>'; }
+    else if ((m = ln.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out += '<ol>'; list = 'ol'; } out += '<li>' + inl(m[1]) + '</li>'; }
+    else if ((m = ln.match(/^#{1,4}\s+(.*)/))) { close(); out += '<h4>' + inl(m[1]) + '</h4>'; }
+    else if (!ln.trim()) close();
+    else { close(); out += '<p>' + inl(ln) + '</p>'; }
+  }
+  close();
+  return out.replace(/\u0000(\d+)\u0000/g, (m, i) => '<pre>' + code[i] + '</pre>');
+}
+
+const chat = $('chat');
+const toEnd = () => chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+function hideHello() { const h = $('hello'); if (h) h.remove(); }
+function clearSug() { document.querySelectorAll('.sug').forEach(e => e.remove()); }
+function userMsg(text, a) {
+  const d = document.createElement('div'); d.className = 'm u';
+  d.innerHTML = '<div class="b">' + (a ? '<div class="tag">&#127916; ' + esc(a.name) + '</div><br>' : '') + esc(text) + '</div>';
+  chat.appendChild(d); toEnd();
+}
+function aiBlock(html) {
+  const d = document.createElement('div'); d.className = 'm a';
+  d.innerHTML = '<div class="av">&#10022;</div><div class="b">' + html + '</div>';
+  chat.appendChild(d); toEnd(); return d.querySelector('.b');
+}
+const typing = () => aiBlock('<div class="dots"><i></i><i></i><i></i></div>');
+function errBlock(t) { aiBlock('<p style="color:#ff8a8a">\u26a0\ufe0f ' + esc(t) + '</p>'); }
+function setModel(m) { if (m) $('mdl').textContent = 'AI: ' + m; }
+function showSug(list) {
+  if (!list || !list.length) return;
+  const d = document.createElement('div'); d.className = 'sug';
+  list.forEach(s => {
+    const b = document.createElement('button');
+    b.textContent = typeof s === 'string' ? s : s.t;
+    b.onclick = () => { if (typeof s === 'string') send(s); else s.fn(); };
+    d.appendChild(b);
+  });
+  chat.appendChild(d); toEnd();
+}
+
+const ICON = { music: '\ud83c\udfb5', overlay: '\ud83d\uddbc\ufe0f', sfx: '\ud83d\udd0a' };
+function chip(ic, t, k) { return '<div class="chip">' + ic + ' <span>' + esc(t) + '</span><button data-k="' + k + '">&#10005;</button></div>'; }
+function renderAtt() {
+  const a = $('att'), parts = [];
+  if (att) parts.push(chip('\ud83c\udfac', att.name + (att.size ? ' \u2022 ' + att.size : ''), 'v'));
+  ['music', 'overlay', 'sfx'].forEach(k => { if (act[k]) parts.push(chip(ICON[k], act[k].name, k)); });
+  a.innerHTML = parts.join(''); a.classList.toggle('hide', !parts.length);
+  a.querySelectorAll('button[data-k]').forEach(b => b.onclick = () => {
+    if (b.dataset.k === 'v') att = null; else act[b.dataset.k] = null;
+    renderAtt(); setSend();
+  });
+  $('inp').placeholder = att ? 'Editing instructions likho (ya preset dabao)...' : 'Magic AI se poochho, link bhejo ya video edit karwao...';
+}
+
+function setSend() { $('send').disabled = busy || (!$('inp').value.trim() && !att); }
+function autosize() { const t = $('inp'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; setSend(); }
+function needKey() { if (!S.key) { openSet('Pehle Gemini API key daalo.'); return false; } return true; }
+
+async function send(text, preset) {
+  text = (text === undefined ? $('inp').value : text).trim();
+  if (busy || (!text && !att)) return;
+  if (!needKey()) return;
+  hideHello(); clearSug();
+  const a = att; att = null; renderAtt();
+  $('inp').value = ''; autosize();
+  userMsg(text || 'Is video ko edit karo', a);
+  busy = true; setSend();
+  try { if (a) await doEdit(text, a, preset || ''); else await doChat(text); }
+  catch (e) { errBlock(e.message || e); }
+  finally { busy = false; setSend(); }
+}
+
+async function doChat(text) {
+  const t = typing();
+  try {
+    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: S.key, history: hist.slice(-20), message: text }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Error');
+    t.parentElement.remove(); setModel(j.model);
+    hist.push({ role: 'user', text }, { role: 'model', text: j.reply });
+    aiBlock(md(j.reply));
+    (j.downloads || []).forEach(d => dlCard(d.job_id, d.kind, d.label));
+    showSug(j.suggestions);
+  } catch (e) { if (t.parentElement) t.parentElement.remove(); throw e; }
+}
+
+function dlCard(jobId, kind, label) {
+  const b = aiBlock('<div class="job"><div class="jt">\u2b07\ufe0f ' + esc(label) + '</div><div class="bar"><i></i></div></div>');
+  (async () => {
+    while (true) {
+      await sleep(1500);
+      let s; try { s = await (await fetch('/api/status/' + jobId)).json(); } catch (e) { continue; }
+      if (!s.log) { b.innerHTML = '<p style="color:#ff8a8a">\u26a0\ufe0f Job nahi mila (server restart?).</p>'; return; }
+      const jt = b.querySelector('.jt'); if (jt) { jt.textContent = '\u2b07\ufe0f ' + (s.log[s.log.length - 1] || ''); b.querySelector('.bar i').style.width = s.pct + '%'; }
+      if (s.state === 'error') { b.innerHTML = '<p style="color:#ff8a8a">\u26a0\ufe0f ' + esc(s.error || 'Download fail') + '</p>'; return; }
+      if (s.state === 'done') {
+        const a = s.asset; act[a.kind] = { id: a.id, name: a.name }; renderAtt(); setSend();
+        const u = '/asset/' + a.id;
+        const prev = a.kind === 'overlay' ? (a.image ? '<img class="ovp" src="' + u + '">' : '<video class="ovp" src="' + u + '" muted loop playsinline controls></video>')
+                                          : '<audio controls src="' + u + '"></audio>';
+        b.innerHTML = '<p>\u2705 <b>' + esc(a.name) + '</b> <span class="small">(' + a.kind + ', ' + a.dur + 's)</span><br><span class="small">Agle edit mein apne-aap use hoga. Sirf copyright-free ya apne rights wala audio use karo.</span></p>' + prev;
+        toEnd(); return;
       }
-      localStorage.setItem(`api_key_${provider}`, key);
-      alert(`${provider.toUpperCase()} API Key सुरक्षित रूप से सेव हो गई!`);
     }
+  })();
+}
 
-    function addMessage(text, type) {
-      const chatArea = document.getElementById("chatArea");
-      const msgDiv = document.createElement("div");
-      msgDiv.className = `msg ${type}`;
-      msgDiv.innerHTML = text.replace(/\n/g, '<br>');
-      chatArea.appendChild(msgDiv);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
+async function startDownload(kind, label) {
+  if (busy) return;
+  hideHello(); clearSug(); userMsg(label);
+  try {
+    const r = await fetch('/api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Download error');
+    dlCard(j.job_id, kind, label);
+  } catch (e) { errBlock(e.message || e); }
+}
 
-    function quickSend(text) {
-      document.getElementById("userInput").value = text;
-      sendMessage();
-    }
+async function doEdit(text, a, preset) {
+  const fd = new FormData();
+  fd.append('key', S.key); fd.append('aspect', S.aspect); fd.append('quality', S.quality);
+  fd.append('instructions', text || 'Fast-paced, high-energy edit.'); fd.append('preset', preset);
+  ['music', 'overlay', 'sfx'].forEach(k => { if (act[k]) fd.append(k, act[k].id); });
+  fd.append('auto_assets', S.auto ? '1' : '0');
+  if (a.file) fd.append('video', a.file); else fd.append('reuse', a.reuse);
+  const b = aiBlock('<div class="job"><div class="jt">\ud83d\udce4 Video upload ho rahi hai...</div><div class="bar"><i></i></div></div>');
+  const set = (t, p) => { b.querySelector('.jt').textContent = t; if (p != null) b.querySelector('.bar i').style.width = p + '%'; };
+  const r = await fetch('/api/edit', { method: 'POST', body: fd });
+  const j = await r.json();
+  if (!r.ok) { b.parentElement.remove(); throw new Error(j.error || 'Upload failed'); }
+  let s;
+  while (true) {
+    await sleep(1500);
+    try { s = await (await fetch('/api/status/' + j.job_id)).json(); } catch (e) { continue; }
+    if (!s.log) { b.parentElement.remove(); throw new Error('Job nahi mila (server restart hua?).'); }
+    set('\u2699\ufe0f ' + (s.log[s.log.length - 1] || ''), s.pct); toEnd();
+    if (s.state === 'done') break;
+    if (s.state === 'error') { b.parentElement.remove(); throw new Error(s.error || 'Edit fail ho gaya'); }
+  }
+  setModel(s.model);
+  (s.assets_new || []).forEach(a => { if (!act[a.kind]) act[a.kind] = { id: a.id, name: a.name }; }); renderAtt();
+  const inf = s.info || {};
+  const tags = [inf.bpm ? inf.bpm + ' BPM' : '', inf.beat_sync ? 'beat-sync' : '', inf.look ? 'grade: ' + inf.look : '', inf.glow ? 'glow ' + inf.glow : '', inf.framing ? 'frame: ' + inf.framing : '', inf.music ? '\ud83c\udfb5 ' + inf.music : '']
+    .concat((inf.sfx || []).map(x => '\ud83d\udd0a ' + x), inf.overlay ? ['\ud83d\uddbc\ufe0f ' + inf.overlay] : [])
+    .filter(Boolean).map(x => '<span>' + esc(x) + '</span>').join('');
+  b.innerHTML = '<p>\u2705 <b>Edit ready!</b> ' + esc(s.title || '') + '</p><div class="kv">' + tags + '</div>' +
+    '<video class="res" controls playsinline src="' + s.video + '"></video>' +
+    '<a class="dl" href="' + s.video + '?dl=1">\u2b07 Download Video</a>' +
+    '<details><summary>Edit blueprint (' + s.blueprint.length + ' cuts)</summary>' +
+    s.blueprint.map(x => '<div><b>' + x.t + '</b> \u2192 ' + x.out + 's | ' + x.speed + ' | zoom ' + x.zoom + ' | ' + x.fx + ' | blur ' + x.blur + (x.text ? ' | "' + esc(x.text) + '"' : '') + '<br>' + esc(x.why) + '</div>').join('') + '</details>';
+  hist.push({ role: 'user', text: '[Video edit request] ' + (text || '') },
+            { role: 'model', text: 'Edit ban gaya: ' + (s.title || '') + '. Cuts: ' + s.blueprint.map(x => x.t + ' ' + x.speed + ' ' + x.fx).join(', ') });
+  toEnd();
+  showSug([
+    { t: '\ud83d\udd01 Same video par naya edit', fn: () => { att = { reuse: j.job_id, name: 'Same video' }; renderAtt(); setSend(); $('inp').focus(); } },
+    'Is video ke liye 5 viral titles + tags do',
+    'Thumbnail idea do'
+  ]);
+}
 
-    async function sendMessage() {
-      const input = document.getElementById("userInput");
-      const text = input.value.trim();
-      if (!text) return;
+function runPreset(p) {
+  if (busy) return;
+  if (p === 'phonk') { if (needKey()) startDownload('music', '\ud83c\udfb5 Download Phonk Audio'); return; }
+  if (p === 'sfx') { if (needKey()) startDownload('sfx', '\ud83d\udd0a Download SFX'); return; }
+  const P = PRESETS[p]; if (!P) return;
+  if (!att) { pending = p; $('file').click(); return; }
+  const extra = $('inp').value.trim();
+  send(P.text + (extra ? ' Extra: ' + extra : ''), P.p);
+}
 
-      addMessage(text, "user");
-      input.value = "";
+function openSet(w) {
+  $('skey').value = S.key;
+  $('sfmt').value = ['auto', 'crop', 'pad', 'original'].includes(S.aspect) ? S.aspect : 'auto'; $('sauto').checked = S.auto;
+  document.querySelector('input[name=qua][value="' + S.quality + '"]').checked = true;
+  $('mwarn').textContent = w || ''; $('mwarn').classList.toggle('hide', !w);
+  $('modal').classList.remove('hide');
+}
+$('setb').onclick = () => openSet('');
+$('eye').onclick = () => { $('skey').type = $('skey').type === 'password' ? 'text' : 'password'; };
+$('ssave').onclick = () => {
+  S.key = $('skey').value.trim();
+  S.aspect = $('sfmt').value; S.auto = $('sauto').checked;
+  S.quality = document.querySelector('input[name=qua]:checked').value;
+  ls.s('mk', S.key); ls.s('mf', S.aspect); ls.s('mq', S.quality); ls.s('mauto', S.auto ? '1' : '0');
+  $('modal').classList.add('hide');
+};
+$('modal').onclick = e => { if (e.target.id === 'modal') $('modal').classList.add('hide'); };
 
-      const provider = document.getElementById("modelProvider").value;
-      const apiKey = localStorage.getItem(`api_key_${provider}`);
+$('newc').onclick = () => { if (!busy) location.reload(); };
+$('plus').onclick = () => { pending = null; $('file').click(); };
+$('file').onchange = () => {
+  const f = $('file').files[0]; if (!f) return;
+  att = { file: f, name: f.name, size: (f.size / 1048576).toFixed(1) + ' MB' };
+  $('file').value = ''; renderAtt(); setSend();
+  if (pending) { const p = pending; pending = null; runPreset(p); } else $('inp').focus();
+};
+$('send').onclick = () => send();
+$('inp').addEventListener('input', autosize);
+$('inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); send(); }
+});
+document.querySelectorAll('#presets button, .cardx[data-p]').forEach(b => b.onclick = () => runPreset(b.dataset.p));
+document.querySelectorAll('.cardx[data-pick]').forEach(b => b.onclick = () => { pending = null; $('file').click(); });
 
-      if (!apiKey) {
-        addMessage(`Error: कृपया पहले ऊपर ${provider.toUpperCase()} API Key डालकर Save करें।`, "error");
-        return;
-      }
+fetch('/api/info').then(r => r.json()).then(j => {
+  setModel(j.model);
+  const miss = [];
+  if (!j.ytdlp) miss.push("yt-dlp install nahi hai: pip install -U 'yt-dlp[default]'");
+  if (!j.node) miss.push('YouTube downloads ke liye nodejs chahiye: pkg install -y nodejs');
+  $('tools').textContent = miss.length ? 'Downloader setup: ' + miss.join(' | ') : 'Downloader ready (yt-dlp + nodejs).';
+}).catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('inst').classList.remove('hide'); });
+window.addEventListener('appinstalled', () => { $('inst').classList.add('hide'); $('instnote').textContent = 'App install ho gaya!'; });
+$('inst').onclick = async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch (e) {} deferred = null; $('inst').classList.add('hide'); };
+if (matchMedia('(display-mode: standalone)').matches) $('instnote').classList.add('hide');
+renderAtt(); setSend();
+if (!S.key) setTimeout(() => openSet('Shuru karne ke liye apni Gemini API key daalo.'), 400);
+</script></body></html>
+"""
 
-      addMessage("सोच रहा हूँ...", "ai");
-      const loadingMsg = document.getElementById("chatArea").lastChild;
 
-      try {
-        let reply = "";
-        if (provider === "groq") {
-          // Free Groq Llama 3 API (No billing/credit card needed)
-          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: "llama-3.1-8b-instant",
-              messages: [
-                { role: "system", content: "You are Magic AI Video Editor. Provide creative, short, impactful video editing ideas and prompts in Hindi/Hinglish." },
-                { role: "user", content: text }
-              ]
-            })
-          });
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.message);
-          reply = data.choices[0].message.content;
-        } else {
-          // Gemini API Call
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: text }] }]
-            })
-          });
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.message);
-          reply = data.candidates[0].content.parts[0].text;
-        }
+if __name__ == "__main__":
+    if "--install-shortcut" in sys.argv:
+        install_shortcut()
+        raise SystemExit(0)
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        raise SystemExit("ffmpeg nahi mila. Chalao: pkg install -y ffmpeg")
+    load_assets()
+    threading.Thread(target=lambda: [make_icon(*k) for k in ((192, False), (512, False), (512, True))], daemon=True).start()
+    cutoff = time.time() - 2 * 86400
+    for d in JOBS_DIR.iterdir():
+        if d.is_dir() and d.stat().st_mtime < cutoff:
+            shutil.rmtree(d, ignore_errors=True)
+    print("\n  Magic AI Editor v2 (by Deshmukh Gamer) -> Chrome mein kholo: http://127.0.0.1:5000\n")
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 5000)), threaded=True)
 
-        loadingMsg.innerHTML = reply.replace(/\n/g, '<br>');
-      } catch (err) {
-        loadingMsg.className = "msg error";
-        loadingMsg.innerText = "Error: AI reply could not be generated. Check your API key. (" + err.message + ")";
-      }
-    }
-  </script>
-</body>
-</html>
+# ===== END OF FILE =====
+EOF
+python -m py_compile ~/app_chat.py && sha256sum ~/app_chat.py | cut -c1-16 && wc -l < ~/app_chat.py
